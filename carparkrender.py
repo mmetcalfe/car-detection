@@ -1,9 +1,10 @@
 from carpark import *
-from openglscene import Scene
+from openglscene import *
 from camera import viewPortMatrix
 
 import cairo
 from drawing2d import ExtendedCairoContext
+from geometry import *
 
 def placeModelWithinRectangle(model, rect, zPos=0, zScale=1):
     xPos, yPos, angle = rect.trans
@@ -57,12 +58,80 @@ class ParkingLotRender:
         cubeModel.dir = np.array([1, 0, 0])
         cubeModel.up = np.array([0, 0, 1])
         cubeModel.scale = np.array([detection.size[0], detection.size[1], 0.1])
+
+        # p = camera.P*np.mat([0,0,0, 1]).T
+        # print 'mul', p
+        # p = p/p[2]
+        # print 'div', p
+        # p = camera.project(np.mat([0,0,0, 1]).T)
+        # cubeModel.pos = np.array([p[0], p[1], 0])
+        # cubeModel.scale = np.array([5, 5, 0.1])
+
         cubeModel.draw(self.openglScene.flatProgram)
 
         # Reset the projection matrix to the camera's projection matrix:
         proj = camera.getOpenGlCameraMatrix()
         self.openglScene.flatProgram.setUniformMat4('proj', proj)
 
+    def getGroundProjectedDetection(self, detection, camera):
+        dc = np.array([detection.trans.x, detection.trans.y, 0], np.float32)
+        dhw = np.array([detection.size[0]*0.5, 0, 0])
+        dhh = np.array([0, detection.size[1]*0.5, 0])
+        vertices = [
+            dc - dhw + dhh,
+            dc + dhw + dhh,
+            dc + dhw - dhh,
+            dc - dhw - dhh
+        ]
+
+        vpInv = np.linalg.inv(viewPortMatrix(camera.framebufferSize))
+        def unvp(u):
+            x = vpInv*np.row_stack([np.mat(u).T, [1]])
+            x = x[:3]
+            # return np.array(x.T)
+            return np.array([x[0,0], x[1,0], x[2,0]])
+
+        vertices = [unvp(v) for v in vertices]
+        gpverts = [camera.projectPointToGround(v) for v in vertices]
+
+        return gpverts
+
+    def openglDrawGroundProjectedDetection(self, detection, camera):
+        model = Model()
+
+        d = 0.99
+        dc = np.array([detection.trans.x, detection.trans.y, d], np.float32)
+        dhw = np.array([detection.size[0]*0.5, 0, 0], np.float32)
+        dhh = np.array([0, detection.size[1]*0.5, 0], np.float32)
+        vertices = [
+            dc - dhw + dhh,
+            dc + dhw + dhh,
+            dc + dhw - dhh,
+            dc - dhw - dhh
+        ]
+        normals = vertices
+        faces = [
+            [0, 1, 2],
+            [2, 3, 0]
+        ]
+
+        vpInv = np.linalg.inv(viewPortMatrix(camera.framebufferSize))
+        def unvp(u):
+            x = vpInv*np.row_stack([np.mat(u).T, [1]])
+            x = x[:3]
+            # return np.array(x.T)
+            return np.array([x[0,0], x[1,0], x[2,0]])
+
+        testverts = [unvp(v) for v in vertices]
+        # print testverts
+        # testverts = [camera.unprojectOpenGL(v) for v in testverts]
+        testverts = [camera.projectPointToGround(v) for v in testverts]
+        # print 'testverts', testverts
+        vertices = testverts
+
+        model.meshBuffers.append(MeshBuffer(vertices, normals, faces))
+        model.draw(self.openglScene.flatProgram, rawVertices=True)
+        model.release()
 
     def renderOpenGL(self, camera, playerCamera):
         self.openglScene.prepareFrame(camera)
@@ -91,10 +160,20 @@ class ParkingLotRender:
             drawFrustum = (cam!=camera)
             self.openglRenderCamera(cam, cubeModel, drawFrustum=drawFrustum)
 
-
         # Draw detections:
+        # for detection in self.parkingLot.detections:
+        #     self.openglDrawOnScreenDetection(detection, cubeModel, camera)
+        #     self.openglDrawGroundProjectedDetection(detection, camera)
+        cams = self.parkingLot.cameras + [playerCamera]
         for detection in self.parkingLot.detections:
             self.openglDrawOnScreenDetection(detection, cubeModel, camera)
+            # self.openglDrawGroundProjectedDetection(detection, camera)
+
+            # proj = camera.getOpenGlCameraMatrix()
+            # self.openglScene.flatProgram.setUniformMat4('proj', proj)
+
+            for cam in cams:
+                self.openglDrawGroundProjectedDetection(detection, cam)
 
 
     def renderCairo(self, camera, fname):
@@ -127,18 +206,42 @@ class ParkingLotRender:
             ctx.stroke()
             # ctx.fill()
 
-        # Draw cameras:
-        ctx.set_line_width(0.01)
+        # # Draw cameras:
+        # ctx.set_line_width(0.01)
+        # ctx.setCol(ctx.getRandCol())
+        # for cam in self.parkingLot.cameras:
+        #     trans2D = Transform2D.fromParts(cam.pos, cam.sphericalDir[1])
+        #     ctx.rotatedRectangle(RotatedRectangle(trans2D, [0.2, 0.1]))
+        #     ctx.stroke()
+
+        ctx.set_line_width(0.05)
         ctx.setCol(ctx.getRandCol())
         for cam in self.parkingLot.cameras:
+            ctx.setCol(ctx.getRandCol())
+
+            # Draw cameras:
             trans2D = Transform2D.fromParts(cam.pos, cam.sphericalDir[1])
             ctx.rotatedRectangle(RotatedRectangle(trans2D, [0.2, 0.1]))
             ctx.stroke()
 
-        # Draw projected detections:
+            # Draw projected detections:
+            for detection in self.parkingLot.detections:
+                pts = self.getGroundProjectedDetection(detection, cam)
+                ctx.move_to(pts[0][0], pts[0][1])
+                for pt in pts[1:]:
+                    ctx.line_to(pt[0], pt[1])
+                ctx.close_path()
+                ctx.stroke()
+
+                # Highlight occupied parking spaces:
+                ctx.setCol(ctx.getRandCol())
+                for space in self.parkingLot.spaces:
+                    ctx.setCol(ctx.getRandCol())
+                    if intersectRectangleConvexQuad(space, pts, ctx):
+                        ctx.rotatedRectangle(space)
+                        ctx.fill()
 
 
-        # Highlight occupied parking spaces:
 
 
         ctx.show_page()

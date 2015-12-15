@@ -58,4 +58,4 @@ class ExtendedCairoContext(cairo.Context):
         self.restore()
 
     def circle(self, centre, radius):
-        ctx.arc(centre[0], centre[1], radius, 0, math.pi*2)
+        self.arc(centre[0], centre[1], radius, 0, np.pi*2)

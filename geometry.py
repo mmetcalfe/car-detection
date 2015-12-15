@@ -26,11 +26,24 @@ def cartesianToSpherical(cartesian):
 
     return spherical;
 
+def normaliseAngle(value):
+    angle = np.fmod(value, 2 * np.pi);
+
+    if (angle <= -np.pi):
+        angle += np.pi * 2;
+
+    if (angle > np.pi):
+        angle -= 2 * np.pi;
+
+    return angle;
+
 class Transform2D(np.ndarray):
     @classmethod
     def fromVec(cls, vec):
+        assert(len(vec) == 3)
         # Construct a standard numpy array:
         arrayvec = np.array(vec)
+        # arrayvec = np.array([vec[0], vec[1], vec[2]])
 
         # Perform a numpy 'view cast' to the target type 'cls':
         trans = arrayvec.view(cls)
@@ -44,6 +57,18 @@ class Transform2D(np.ndarray):
         # Perform a numpy 'view cast' to the target type 'cls':
         trans = arrayvec.view(cls)
         return trans
+
+    def worldToLocal(self, reference):
+        reference = Transform2D.fromVec(reference)
+        cosAngle = np.cos(self.angle)
+        sinAngle = np.sin(self.angle)
+        diff = reference - self
+        # translates to rotZ(this.angle) * (reference - this)
+        return Transform2D.fromVec([
+            cosAngle * diff.x + sinAngle * diff.y,
+            -sinAngle * diff.x + cosAngle * diff.y,
+            normaliseAngle(diff.angle)
+        ])
 
     @property
     def x(self):
@@ -86,3 +111,33 @@ class RotatedRectangle:
     def __init__(self, trans2d, size):
         self.trans = Transform2D.fromVec(trans2d)
         self.size = np.array(size)
+
+    def contains(self, pt):
+        local = self.trans.worldToLocal([pt[0], pt[1], 0]);
+        absLocal = np.abs(local.xy);
+
+        if absLocal[0] > self.size[0]*0.5 or absLocal[1] > self.size[1]*0.5:
+            return False;
+
+        return True
+
+def intersectRectTri(rect, tri, ctx):
+    for u in np.arange(0, 1, 0.05):
+        for v in np.arange(0, 1, 0.05):
+            if u + v > 1:
+                continue
+            w = 1.0 - u - v
+            q = u * tri[0] + v * tri[1] + w * tri[2]
+            # ctx.circle(q, 0.02)
+            # ctx.fill()
+            if rect.contains(q):
+                return True
+    return False
+
+def intersectRectangleConvexQuad(rect, pts, ctx):
+    if intersectRectTri(rect, [pts[0], pts[1], pts[2]], ctx):
+        return True
+    if intersectRectTri(rect, [pts[2], pts[3], pts[0]], ctx):
+        return True
+
+    return False

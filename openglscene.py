@@ -291,25 +291,29 @@ class MeshBuffer:
     def facesToElements(faces):
         return np.array([i for fc in faces for i in fc], np.uint32)
 
-    def __init__(self, mesh):
+    def __init__(self, vertices, normals, faces):
         self.vertex = None
         self.element = None
         # Map shader programs to vertex arrays:
         self.vertexArrayMap = {}
 
         vertexData = []
-        for i in range(0, len(mesh.vertices)):
-            vertexData.extend(mesh.vertices[i])
-            vertexData.extend(mesh.normals[i])
-            # vertexData.extend(mesh.texturecoords[i][:2])
+        for i in range(0, len(vertices)):
+            vertexData.extend(vertices[i])
+            vertexData.extend(normals[i])
+            # vertexData.extend(texturecoords[i][:2])
 
         vertexData = np.array(vertexData, np.float32)
         self.vertex = Buffer()
         self.vertex.setData(GL_ARRAY_BUFFER, vertexData, GL_STATIC_DRAW)
 
-        elements = MeshBuffer.facesToElements(mesh.faces)
+        elements = MeshBuffer.facesToElements(faces)
         self.element = Buffer()
         self.element.setData(GL_ELEMENT_ARRAY_BUFFER, elements, GL_STATIC_DRAW)
+
+    @classmethod
+    def fromMesh(cls, mesh):
+        return cls(mesh.vertices, mesh.normals, mesh.faces)
 
     def delete(self):
         self.vertex.delete()
@@ -355,7 +359,7 @@ class MeshBuffer:
         # Mesh::draw
         program.use();
         if not program in self.vertexArrayMap.keys():
-            prepareVertexArrayForShaderProgram(program);
+            self.prepareVertexArrayForShaderProgram(program);
 
         self.vertexArrayMap[program].bind()
         self.vertex.bind(GL_ARRAY_BUFFER) # Not necessary?
@@ -367,46 +371,60 @@ class MeshBuffer:
 
 
 class Model:
-    def __init__(self, fname):
-        self.aiModel = imp.load(fname)
+    def __init__(self, aiModel=None):
+        self.aiModel = aiModel
 
         self.meshBuffers = []
 
         # defaults:
-        self.dir = np.array([1, 0, 0], np.float32)
-        self.up = np.array([0, 0, 1], np.float32)
+        self.dir = np.array([0, 0, 1], np.float32)
+        self.up = np.array([1, 0, 0], np.float32)
         self.pos = np.array([0, 0, 0], np.float32)
         self.scale = np.array([1, 1, 1], np.float32)
 
+    @classmethod
+    def fromFile(cls, fname):
+        aiModel = imp.load(fname)
+        model = cls(aiModel)
+        # model.generateBuffers()
+        assert(len(model.meshBuffers) == 0)
+        for mesh in model.aiModel.meshes:
+            model.meshBuffers.append(MeshBuffer.fromMesh(mesh))
+        return model
+
     def release(self):
-        imp.release(self.aiModel)
+        if self.aiModel != None:
+            imp.release(self.aiModel)
 
         for buff in self.meshBuffers:
             buff.delete()
 
-    def generateBuffers(self):
-        assert(len(self.meshBuffers) == 0)
-        for mesh in self.aiModel.meshes:
-            self.meshBuffers.append(MeshBuffer(mesh))
+    # def generateBuffers(self):
+    #     assert(len(self.meshBuffers) == 0)
+    #     for mesh in self.aiModel.meshes:
+    #         self.meshBuffers.append(MeshBuffer(mesh))
 
     def prepareVertexArraysForShaderProgram(self, program):
         for buff in self.meshBuffers:
             buff.prepareVertexArrayForShaderProgram(program)
 
-    def draw(self, program, model=None):
+    def draw(self, program, model=None, rawVertices=False):
         scale = np.eye(4, dtype=np.float32)
         scale[0,0] = self.scale[0]
         scale[1,1] = self.scale[1]
         scale[2,2] = self.scale[2]
 
-        if model == None:
-            orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
-            # model = np.linalg.inv(orient)*scale
-            model = np.linalg.inv(orient)*scale
+        if not rawVertices:
+            if model == None:
+                orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
+                # model = np.linalg.inv(orient)*scale
+                model = np.linalg.inv(orient)*scale
+            else:
+                orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
+                # model = model*np.linalg.inv(orient)*scale
+                model = model*np.linalg.inv(orient)*scale
         else:
-            orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
-            # model = model*np.linalg.inv(orient)*scale
-            model = model*np.linalg.inv(orient)*scale
+            model = np.eye(4, dtype=np.float32)
         program.setUniformMat4('model', model)
 
         # for mesh in self.aiModel.meshes:
@@ -442,8 +460,7 @@ class Scene:
         self.flatProgram = flatProgram
 
         modelPath = os.path.join(os.path.dirname(__file__), 'models/cube.obj')
-        cubeModel = Model(modelPath)
-        cubeModel.generateBuffers()
+        cubeModel = Model.fromFile(modelPath)
         cubeModel.prepareVertexArraysForShaderProgram(flatProgram)
         cubeModel.pos = np.array([-1, 1, 4], np.float32)
         cubeModel.dir = np.array([0, 0, -1], np.float32)

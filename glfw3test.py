@@ -51,12 +51,13 @@ def buildParkingLot():
     )
 
     # Add parking spaces:
-    parkingLot.spaces.append(ParkingSpace([2, 0.5, 0], [0.8, 1.8]))
-    parkingLot.spaces.append(ParkingSpace([1, 0.5, 0], [0.8, 1.8]))
-    parkingLot.spaces.append(ParkingSpace([0, 0.5, 0], [0.8, 1.8]))
+    parkingLot.spaces.append(ParkingSpace([3, 0.7, 0], [1.3, 2]))
+    parkingLot.spaces.append(ParkingSpace([1.5, 0.7, 0], [1.3, 2]))
+    parkingLot.spaces.append(ParkingSpace([0, 0.7, 0], [1.3, 2]))
+    parkingLot.spaces.append(ParkingSpace([-1.5, 0.7, 0], [1.3, 2]))
 
     # Add cameras:
-    f = 240
+    f = 320*1.5
     up = np.array([0, 0, 1])
     near = 0.1
     far = 100
@@ -71,6 +72,8 @@ def buildParkingLot():
 
     # Add detections:
     parkingLot.detections.append(Detection([320, 240, 0], [320, 240]))
+    # parkingLot.detections.append(Detection([320, 240, 0], [320, 240]))
+    # parkingLot.detections.append(Detection([framebufferSize[0]/2.0, framebufferSize[1]/2.0, 0], framebufferSize))
 
 
     return parkingLot

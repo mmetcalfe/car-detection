@@ -125,6 +125,7 @@ def buildProjectionMatrix(f, framebufferSize, pos, dir, up):
     ], np.float32)
 
     V = lookAtTransform(pos, pos + dir, up, camera=True)
+    # print 'V', V
 
     return K*V
 
@@ -145,6 +146,7 @@ class Camera(PCVCamera):
 
     def getOpenGlCameraMatrix(self):
         K, R, t = self.factor()
+        # print 'R', R
 
         # print 'getOpenGlCameraMatrix:'
         # print 'Kraw:', K
@@ -180,3 +182,71 @@ class Camera(PCVCamera):
         P = buildProjectionMatrix(f, framebufferSize, pos, dir, up)
 
         return cls(P, near, far, framebufferSize)
+
+    def unprojectOpenGL(self, u):
+        # K, R, t = camera.factor()
+
+        # squareProj = np.row_stack((
+        #     camera.P,
+        #     np.array([0,0,0,1], np.float32)
+        # ))
+        # invProj = np.linalg.inv(squareProj)
+        # x = invProj*np.row_stack([np.mat(u).T, [1]])
+        # x = x[:3]
+
+        # u = np.mat(u).T
+        # x = np.linalg.inv(R)*(np.linalg.inv(K)*u - t)
+
+        proj = self.getOpenGlCameraMatrix()
+        invProj = np.linalg.inv(proj)
+        x = invProj*np.row_stack([np.mat(u).T, [1]])
+        x = x[:3] / x[3]
+        return x
+
+    def unproject(self, u):
+        # K, R, t = camera.factor()
+
+        # squareProj = np.row_stack((
+        #     camera.P,
+        #     np.array([0,0,0,1], np.float32)
+        # ))
+        # invProj = np.linalg.inv(squareProj)
+        # x = invProj*np.row_stack([np.mat(u).T, [1]])
+        # x = x[:3]
+
+        # u = np.mat(u).T
+        # x = np.linalg.inv(R)*(np.linalg.inv(K)*u - t)
+
+        proj = self.getOpenGlCameraMatrix()
+        invProj = np.linalg.inv(proj)
+        x = invProj*np.row_stack([np.mat(u).T, [1]])
+        x = x[:3] / x[3]
+        return x
+
+    # TODO: Fix handling of camera centre.
+    def center(self):
+        self.factor()
+        self.c = -np.dot(self.R.T,self.t)
+        return self.c
+
+    def projectPointToGround(self, xy):
+        u = self.unproject([xy[0], xy[1], 0.9])
+
+        self.factor()
+        c = self.center()
+        d = u - c
+
+        dx, dy, dz = d
+
+        # gu = np.array([u[0], u[1], 0], np.float32)
+        gc = np.array([c[0], c[1], 0], np.float32)
+        gd = np.array([dx, dy, 0], np.float32)
+
+        if dz > 0:
+            return gc + gd*1000
+
+        z = float(c[2])
+
+        t = -z / float(dz)
+        gp = gc + gd*t
+        return gp
