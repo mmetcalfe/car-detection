@@ -1,9 +1,8 @@
 import numpy as np
 
-def rotationFromVectors(dir, up):
+def rotationFromVectors(dir, up, camera=False):
     dir = dir/np.linalg.norm(dir)
     up = up/np.linalg.norm(up)
-
 
     rightRaw = np.cross(dir, up)
     rightLen = np.linalg.norm(rightRaw)
@@ -19,17 +18,28 @@ def rotationFromVectors(dir, up):
     up = -np.cross(dir, right)
     up = up/np.linalg.norm(up)
 
-    # A = np.column_stack((right, up, dir))
-    A = np.column_stack((right, up, -dir))
+    A = None
+    if camera:
+        # OpenGL eye coordinates:
+        #   forward: -Z axis
+        #   up: Y axis
+        #   right: X-axis
+        A = np.column_stack((right, up, -dir))
+    else:
+        # 'Standard' right handed coordinate system:
+        #   forward: X axis
+        #   up: Z-axis
+        #   right: Y-axis
+        A = np.column_stack((dir, right, up))
 
     # return np.eye(3)
     return np.linalg.inv(A)
 
-def lookAtTransform(pos, target, up, square=False):
+def lookAtTransform(pos, target, up, square=False, camera=False):
     # print 'lookAtTransform:'
     dir = target - pos
 
-    R = rotationFromVectors(dir, up)
+    R = rotationFromVectors(dir, up, camera=camera)
 
     # print 'R:', R
 
@@ -110,7 +120,7 @@ def buildProjectionMatrix(f, framebufferSize, pos, dir, up):
         [0, 0,  1],
     ], np.float32)
 
-    V = lookAtTransform(pos, pos + dir, up)
+    V = lookAtTransform(pos, pos + dir, up, camera=True)
 
     return K*V
 

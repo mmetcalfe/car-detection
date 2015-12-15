@@ -399,8 +399,7 @@ class Model:
         scale[1,1] = self.scale[1]
         scale[2,2] = self.scale[2]
         orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
-        # model = np.linalg.inv(orient)*scale
-        model = np.linalg.inv(orient)
+        model = np.linalg.inv(orient)*scale
         # print 'proj*model', proj*model
         program.setUniformMat4('model', model)
 
@@ -444,7 +443,7 @@ class Scene:
         cubeModel.dir = np.array([0, 0, -1])
         cubeModel.up = np.array([0, 1, 0])
         cubeModel.scale = np.array([1, 1, 1])
-        self.models['cubeModel'] = cubeModel
+        self.models['cube'] = cubeModel
 
     def release(self):
         self.flatProgram.delete()
@@ -466,10 +465,10 @@ class Scene:
         glDisable(GL_DEPTH_TEST);
         # glClear(GL_COLOR_BUFFER_BIT)
 
-        # Backface culling:
-        glEnable(GL_CULL_FACE); # cull face
-        glCullFace(GL_BACK); # cull back face
-        glFrontFace(GL_CCW); # GL_CCW for counter clock-wise
+        # # Backface culling:
+        # glEnable(GL_CULL_FACE); # cull face
+        # glCullFace(GL_BACK); # cull back face
+        # glFrontFace(GL_CCW); # GL_CCW for counter clock-wise
 
         proj = camera.getOpenGlCameraMatrix()
         self.flatProgram.setUniformMat4('proj', proj)

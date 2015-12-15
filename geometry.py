@@ -1,6 +1,41 @@
 import numpy as np
 
+def sphericalToCartesian(spherical):
+    r = spherical[0]
+    sinTheta = np.sin(spherical[1])
+    cosTheta = np.cos(spherical[1])
+    sinPhi = np.sin(spherical[2])
+    cosPhi = np.cos(spherical[2])
+
+    cartesian = np.zeros(3, np.float32)
+    cartesian[0] = r * cosTheta * cosPhi
+    cartesian[1] = r * sinTheta * cosPhi
+    cartesian[2] = r * sinPhi
+    return cartesian;
+
+def cartesianToSpherical(cartesian):
+    x, y, z = cartesian
+
+    spherical = np.zeros(3, np.float32)
+    spherical[0] = np.sqrt(x*x + y*y + z*z)
+    spherical[1] = np.arctan2(y, x)
+    if spherical[0] == 0:
+        spherical[2] = 0
+    else:
+        spherical[2] = np.arcsin(z / spherical[0])
+
+    return spherical;
+
 class Transform2D(np.ndarray):
+    @classmethod
+    def fromVec(cls, vec):
+        # Construct a standard numpy array:
+        arrayvec = np.array(vec)
+
+        # Perform a numpy 'view cast' to the target type 'cls':
+        trans = arrayvec.view(cls)
+        return trans
+
     @classmethod
     def fromParts(cls, vec, angle):
         # Construct a standard numpy array:
@@ -49,5 +84,5 @@ class Transform2D(np.ndarray):
 
 class RotatedRectangle:
     def __init__(self, trans2d, size):
-        self.size = size
-        self.trans = trans2d
+        self.trans = Transform2D.fromVec(trans2d)
+        self.size = np.array(size)

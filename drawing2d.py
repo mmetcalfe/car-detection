@@ -52,3 +52,6 @@ class ExtendedCairoContext(cairo.Context):
         self.scale(rotRect.size[0], rotRect.size[1])
         self.rectangle(-0.5,-0.5,1,1)
         self.restore()
+
+    def circle(self, centre, radius):
+        ctx.arc(centre[0], centre[1], radius, 0, math.pi*2)
