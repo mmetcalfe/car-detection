@@ -27,13 +27,14 @@ class ExtendedCairoContext(cairo.Context):
 
     def transformToRealWorldUnits(self, canvasSize, realSize, realCentre):
         # Transform the canvas to allow drawing in real-world units:
-        canvasAspect = canvasSize[0] / canvasSize[1];
-        mapAspect = realSize[0] / realSize[1];
+        # Note: Also allow different canvas and map aspect ratios.
+        canvasAspect = canvasSize[0] / float(canvasSize[1])
+        mapAspect = realSize[0] / float(realSize[1])
         if mapAspect > canvasAspect:
-            drawingScale = canvasSize[0] / realSize[0];
+            drawingScale = canvasSize[0] / float(realSize[0])
             self.scale(drawingScale, drawingScale);
         else:
-            drawingScale = canvasSize[1] / realSize[1];
+            drawingScale = canvasSize[1] / float(realSize[1])
             self.scale(drawingScale, drawingScale);
 
         # Set the coordinate system origin as specified:

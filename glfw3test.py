@@ -54,7 +54,7 @@ def buildParkingLot():
     # Add cameras:
     f = 240
     up = np.array([0, 0, 1])
-    near = 0.2
+    near = 0.1
     far = 100
     framebufferSize = (500, 500)
 

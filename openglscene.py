@@ -393,14 +393,20 @@ class Model:
         for buff in self.meshBuffers:
             buff.prepareVertexArrayForShaderProgram(program)
 
-    def draw(self, program):
+    def draw(self, program, model=None):
         scale = np.eye(4)
         scale[0,0] = self.scale[0]
         scale[1,1] = self.scale[1]
         scale[2,2] = self.scale[2]
-        orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
-        model = np.linalg.inv(orient)*scale
-        # print 'proj*model', proj*model
+
+        if model == None:
+            orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
+            # model = np.linalg.inv(orient)*scale
+            model = np.linalg.inv(orient)*scale
+        else:
+            orient = lookAtTransform(self.pos, self.pos + self.dir, self.up, square=True)
+            # model = model*np.linalg.inv(orient)*scale
+            model = model*np.linalg.inv(orient)*scale
         program.setUniformMat4('model', model)
 
         # for mesh in self.aiModel.meshes:

@@ -23,12 +23,20 @@ class ParkingLotRender:
     def release(self):
         self.openglScene.release()
 
-    def openglRenderCamera(self, cam, cubeModel):
+    def openglRenderCamera(self, cam, cubeModel, drawFrustum=True):
         cubeModel.pos = cam.pos
         cubeModel.dir = sphericalToCartesian(cam.sphericalDir)
         cubeModel.up = cam.up
         cubeModel.scale = np.array([0.2, 0.1, 0.1])
         cubeModel.draw(self.openglScene.flatProgram)
+
+        if drawFrustum:
+            cubeModel.pos = np.array([0,0,0])
+            cubeModel.dir = np.array([1,0,0])
+            cubeModel.up = np.array([0,0,1])
+            cubeModel.scale = np.array([2,2,1])
+            proj = cam.getOpenGlCameraMatrix()
+            cubeModel.draw(self.openglScene.flatProgram, np.linalg.inv(proj))
 
     def renderOpenGL(self, camera):
         self.openglScene.prepareFrame(camera)
@@ -51,10 +59,9 @@ class ParkingLotRender:
             cubeModel.draw(self.openglScene.flatProgram)
 
         # Draw cameras:
-        self.openglRenderCamera(camera, cubeModel)
+        self.openglRenderCamera(camera, cubeModel, drawFrustum=False)
         for cam in self.parkingLot.cameras:
             self.openglRenderCamera(cam, cubeModel)
-
 
     def renderCairo(self, camera, fname):
         # Carpark config:
