@@ -20,7 +20,7 @@ class PlayerCamera(Camera):
         self.lookSpeed = 0.005
         self.lastUpdateTime = 0.0
 
-    def processKeyboardInput(self, window, deltaTime):
+    def processMoveInput(self, window, deltaTime):
         move = np.zeros(3, np.float32)
         if glfw.GetKey(window, glfw.KEY_W) == glfw.PRESS:
             move[0] += 1
@@ -53,7 +53,7 @@ class PlayerCamera(Camera):
 
         self.pos += forwardVec + rightVec + upVec
 
-    def processMouseInput(self, window, deltaTime):
+    def processLookInput(self, window, deltaTime):
 
         cursor = np.array(glfw.GetCursorPos(window), np.float32)
         if 'lastCursor' in dir(self):
@@ -78,8 +78,8 @@ class PlayerCamera(Camera):
         # print 'self.pos', self.pos
         # print 'self.sphericalDir', self.sphericalDir
 
-        self.processKeyboardInput(window, deltaTime)
-        self.processMouseInput(window, deltaTime)
+        self.processMoveInput(window, deltaTime)
+        self.processLookInput(window, deltaTime)
 
         dir = sphericalToCartesian(self.sphericalDir)
         self.updateMatrix(self.f, self.framebufferSize, self.pos, dir, self.up)

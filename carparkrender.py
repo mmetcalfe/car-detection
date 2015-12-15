@@ -23,6 +23,13 @@ class ParkingLotRender:
     def release(self):
         self.openglScene.release()
 
+    def openglRenderCamera(self, cam, cubeModel):
+        cubeModel.pos = cam.pos
+        cubeModel.dir = sphericalToCartesian(cam.sphericalDir)
+        cubeModel.up = cam.up
+        cubeModel.scale = np.array([0.2, 0.1, 0.1])
+        cubeModel.draw(self.openglScene.flatProgram)
+
     def renderOpenGL(self, camera):
         self.openglScene.prepareFrame(camera)
 
@@ -42,6 +49,11 @@ class ParkingLotRender:
         for space in self.parkingLot.spaces:
             placeModelWithinRectangle(cubeModel, space, 0, 0.1)
             cubeModel.draw(self.openglScene.flatProgram)
+
+        # Draw cameras:
+        self.openglRenderCamera(camera, cubeModel)
+        for cam in self.parkingLot.cameras:
+            self.openglRenderCamera(cam, cubeModel)
 
 
     def renderCairo(self, camera, fname):
@@ -75,7 +87,12 @@ class ParkingLotRender:
             # ctx.fill()
 
         # Draw cameras:
-
+        ctx.set_line_width(0.01)
+        ctx.setCol(ctx.getRandCol())
+        for cam in self.parkingLot.cameras:
+            trans2D = Transform2D.fromParts(cam.pos, cam.sphericalDir[1])
+            ctx.rotatedRectangle(RotatedRectangle(trans2D, [0.2, 0.1]))
+            ctx.stroke()
 
         # Draw projected detections:
 

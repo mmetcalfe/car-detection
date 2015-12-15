@@ -22,13 +22,15 @@ class CbWindow:
         self.framebufferSize = (width, height)
 
         f = 240
-        pos = np.array([1, -1, -1])
-        dir = np.array([-1, 1, 1])
+        pos = np.array([3, 3, 3])
+        dir = np.array([-1, -1, -1])
         up = np.array([0, 0, 1])
-        near = 0.1
+        near = 0.2
         far = 100
         self.playerCamera = PlayerCamera(f, self.framebufferSize, pos, dir, up, near, far)
+        self.currentCamera = self.playerCamera
         self.cameraLocked = True
+        self.mainRender = True
 
         def key_callback(window, key, scancode, action, mods):
             if (key == glfw.KEY_ESCAPE and action == glfw.PRESS):
@@ -40,9 +42,12 @@ class CbWindow:
 
                 glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_NORMAL if self.cameraLocked else glfw.CURSOR_DISABLED)
 
-                if self.cameraLocked:
-                    windowWidth, windowHeight = glfw.GetWindowSize(window)
-                    glfw.SetCursorPos(window, windowWidth / 2, windowHeight / 2)
+                # if not self.cameraLocked:
+                # Ensure that locking/unlocking doesn't move the view:
+                windowWidth, windowHeight = glfw.GetWindowSize(window)
+                glfw.SetCursorPos(window, windowWidth / 2, windowHeight / 2)
+                self.currentCamera.lastCursor = np.array(glfw.GetCursorPos(window), np.float32)
+                self.currentCamera.lastUpdateTime = glfw.GetTime()
 
             pass
             # # print(

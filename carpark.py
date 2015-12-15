@@ -33,3 +33,4 @@ class ParkingLot:
         self.centre = np.array(centre)
         self.canvasSize = np.array(canvasSize)
         self.spaces = []
+        self.cameras = []

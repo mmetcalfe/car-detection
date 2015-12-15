@@ -2,6 +2,11 @@ import numpy as np
 import cairo
 from geometry import *
 
+def getRandCol():
+    vc = np.random.rand(3)
+    ln = np.linalg.norm(vc)
+    return vc / ln
+
 class ExtendedCairoContext(cairo.Context):
     def numpy2CairoMat(numpyMat):
         assert(numpyMat[2,0] == 0)
@@ -39,9 +44,7 @@ class ExtendedCairoContext(cairo.Context):
         self.scale(1.0,-1.0)
 
     def getRandCol(self):
-        vc = np.random.rand(3)
-        ln = np.linalg.norm(vc)
-        return vc / ln
+        return getRandCol()
 
     def setCol(self, colVec):
         self.set_source_rgb(colVec[0], colVec[1], colVec[2])

@@ -21,6 +21,51 @@ from cbwindow import CbWindow
 from openglscene import Scene
 from carparkrender import ParkingLotRender
 from carpark import *
+from playercamera import PlayerCamera
+
+def processCameraSelectInput(window, parkingLot):
+    if glfw.GetKey(window.window, glfw.KEY_GRAVE_ACCENT) == glfw.PRESS:
+        window.currentCamera = window.playerCamera
+        return
+
+    camIndex = -1
+    for key_id in range(glfw.KEY_9, glfw.KEY_0, -1):
+        if glfw.GetKey(window.window, key_id) == glfw.PRESS:
+            keyNum = key_id - glfw.KEY_0
+            camIndex = keyNum - 1
+
+    if camIndex >= 0 and camIndex < len(parkingLot.cameras):
+        window.currentCamera = parkingLot.cameras[camIndex]
+
+def buildParkingLot():
+    parkingLot = ParkingLot(
+        # size = np.array([5.0, 3.0]),
+        # centre = np.array([2.5, 1.5]),
+        size = np.array([7.0, 5.0]),
+        centre = np.array([3, 3]),
+        canvasSize = np.array([700, 500])
+    )
+
+    # Add parking spaces:
+    parkingLot.spaces.append(ParkingSpace([2, 0.5, 0], [0.8, 1.8]))
+    parkingLot.spaces.append(ParkingSpace([1, 0.5, 0], [0.8, 1.8]))
+    parkingLot.spaces.append(ParkingSpace([0, 0.5, 0], [0.8, 1.8]))
+
+    # Add cameras:
+    f = 240
+    up = np.array([0, 0, 1])
+    near = 0.2
+    far = 100
+    framebufferSize = (500, 500)
+
+    pos = np.array([3, -2, 3])
+    dir = np.array([-3, 2, -3])
+    parkingLot.cameras.append(PlayerCamera(f, framebufferSize, pos, dir, up, near, far))
+    pos = np.array([-2, -1, 4])
+    dir = np.array([2, 1, -3])
+    parkingLot.cameras.append(PlayerCamera(f, framebufferSize, pos, dir, up, near, far))
+
+    return parkingLot
 
 def main():
     cairoSavePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'carpark.pdf')
@@ -40,15 +85,9 @@ def main():
 
     print glGetString(GL_VERSION)
 
-    parkingLot = ParkingLot(
-        size = np.array([5.0, 3.0]),
-        centre = np.array([2.5, 1.5]),
-        canvasSize = np.array([500, 300])
-    )
-    parkingLot.spaces.append(ParkingSpace([2, 0.5, 0], [0.8, 1.8]))
-    parkingLot.spaces.append(ParkingSpace([1, 0.5, 0], [0.8, 1.8]))
-    parkingLot.spaces.append(ParkingSpace([0, 0.5, 0], [0.8, 1.8]))
+    parkingLot = buildParkingLot()
     mainRender = ParkingLotRender(parkingLot)
+    window.mainRender = mainRender
 
     mainRender.renderCairo(window.playerCamera, cairoSavePath)
 
@@ -66,8 +105,10 @@ def main():
         # Poll for and process events
         glfw.PollEvents()
 
+        processCameraSelectInput(window, parkingLot)
+
         if not window.cameraLocked:
-            window.playerCamera.processPlayerInput(window.window)
+            window.currentCamera.processPlayerInput(window.window)
 
     glfw.DestroyWindow(window.window)
     glfw.Terminate()
