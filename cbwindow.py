@@ -100,8 +100,9 @@ class CbWindow:
 
         def framebuffer_size_callback(window, fbs_x, fbs_y):
             print("buffer: x=%s y=%s" % (fbs_x, fbs_y))
-            glViewport(0, 0, fbs_x, fbs_y);
             self.framebufferSize = (fbs_x, fbs_y)
+            self.playerCamera.framebufferSize = (fbs_x, fbs_y)
+            glViewport(0, 0, self.currentCamera.framebufferSize[0], self.currentCamera.framebufferSize[1])
             pass
 
         glfw.SetKeyCallback(self.window, key_callback)

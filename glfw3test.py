@@ -26,6 +26,8 @@ from playercamera import PlayerCamera
 def processCameraSelectInput(window, parkingLot):
     if glfw.GetKey(window.window, glfw.KEY_GRAVE_ACCENT) == glfw.PRESS:
         window.currentCamera = window.playerCamera
+        glViewport(0, 0, window.currentCamera.framebufferSize[0], window.currentCamera.framebufferSize[1]);
+        window.cameraLocked = True
         return
 
     camIndex = -1
@@ -36,6 +38,8 @@ def processCameraSelectInput(window, parkingLot):
 
     if camIndex >= 0 and camIndex < len(parkingLot.cameras):
         window.currentCamera = parkingLot.cameras[camIndex]
+        glViewport(0, 0, window.currentCamera.framebufferSize[0], window.currentCamera.framebufferSize[1]);
+        window.cameraLocked = True
 
 def buildParkingLot():
     parkingLot = ParkingLot(
@@ -64,6 +68,10 @@ def buildParkingLot():
     pos = np.array([-2, -1, 4])
     dir = np.array([2, 1, -3])
     parkingLot.cameras.append(PlayerCamera(f, framebufferSize, pos, dir, up, near, far))
+
+    # Add detections:
+    parkingLot.detections.append(Detection([320, 240, 0], [320, 240]))
+
 
     return parkingLot
 
@@ -97,7 +105,8 @@ def main():
     while not glfw.WindowShouldClose(window.window):
         # Render here
         # mainScene.renderModels(window.playerCamera)
-        mainRender.renderOpenGL(window.playerCamera)
+        # mainRender.renderOpenGL(window.playerCamera)
+        mainRender.renderOpenGL(window.currentCamera, window.playerCamera)
 
         # Swap front and back buffers
         glfw.SwapBuffers(window.window)

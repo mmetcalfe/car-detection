@@ -36,6 +36,10 @@ def rotationFromVectors(dir, up, camera=False):
     return np.linalg.inv(A)
 
 def lookAtTransform(pos, target, up, square=False, camera=False):
+    pos = np.array(pos, np.float32)
+    target = np.array(target, np.float32)
+    up = np.array(up, np.float32)
+
     # print 'lookAtTransform:'
     dir = target - pos
 

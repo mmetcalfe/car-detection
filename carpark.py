@@ -34,3 +34,10 @@ class ParkingLot:
         self.canvasSize = np.array(canvasSize)
         self.spaces = []
         self.cameras = []
+        self.detections = []
+
+class Detection(RotatedRectangle):
+    """
+    The axis-aligned rectangular bounding box of a detected object.
+    """
+    pass

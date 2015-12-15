@@ -373,10 +373,10 @@ class Model:
         self.meshBuffers = []
 
         # defaults:
-        self.dir = np.array([1, 0, 0])
-        self.up = np.array([0, 0, 1])
-        self.pos = np.array([0, 0, 0])
-        self.scale = np.array([1, 1, 1])
+        self.dir = np.array([1, 0, 0], np.float32)
+        self.up = np.array([0, 0, 1], np.float32)
+        self.pos = np.array([0, 0, 0], np.float32)
+        self.scale = np.array([1, 1, 1], np.float32)
 
     def release(self):
         imp.release(self.aiModel)
@@ -394,7 +394,7 @@ class Model:
             buff.prepareVertexArrayForShaderProgram(program)
 
     def draw(self, program, model=None):
-        scale = np.eye(4)
+        scale = np.eye(4, dtype=np.float32)
         scale[0,0] = self.scale[0]
         scale[1,1] = self.scale[1]
         scale[2,2] = self.scale[2]
@@ -445,10 +445,10 @@ class Scene:
         cubeModel = Model(modelPath)
         cubeModel.generateBuffers()
         cubeModel.prepareVertexArraysForShaderProgram(flatProgram)
-        cubeModel.pos = np.array([-1, 1, 4])
-        cubeModel.dir = np.array([0, 0, -1])
-        cubeModel.up = np.array([0, 1, 0])
-        cubeModel.scale = np.array([1, 1, 1])
+        cubeModel.pos = np.array([-1, 1, 4], np.float32)
+        cubeModel.dir = np.array([0, 0, -1], np.float32)
+        cubeModel.up = np.array([0, 1, 0], np.float32)
+        cubeModel.scale = np.array([1, 1, 1], np.float32)
         self.models['cube'] = cubeModel
 
     def release(self):

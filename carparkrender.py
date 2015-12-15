@@ -1,5 +1,6 @@
 from carpark import *
 from openglscene import Scene
+from camera import viewPortMatrix
 
 import cairo
 from drawing2d import ExtendedCairoContext
@@ -24,6 +25,9 @@ class ParkingLotRender:
         self.openglScene.release()
 
     def openglRenderCamera(self, cam, cubeModel, drawFrustum=True):
+        if not drawFrustum:
+            return
+
         cubeModel.pos = cam.pos
         cubeModel.dir = sphericalToCartesian(cam.sphericalDir)
         cubeModel.up = cam.up
@@ -38,7 +42,29 @@ class ParkingLotRender:
             proj = cam.getOpenGlCameraMatrix()
             cubeModel.draw(self.openglScene.flatProgram, np.linalg.inv(proj))
 
-    def renderOpenGL(self, camera):
+    def openglDrawOnScreenDetection(self, detection, cubeModel, camera):
+        # Invert OpenGL's (implicit) viewport matrix and set it as the
+        # projection matrix to allow drawing directly onto the screen in units
+        # of pixels.
+        # Note: The viewport matrix has been set previously using:
+        #    glViewport(0, 0, fbs_x, fbs_y);
+        proj = np.linalg.inv(viewPortMatrix(camera.framebufferSize))
+        self.openglScene.flatProgram.setUniformMat4('proj', proj)
+        # print 'proj', proj
+
+        # Draw an axis-aligned cube scaled to the size of the detection:
+        cubeModel.pos = np.array([detection.trans.x, detection.trans.y, 0])
+        cubeModel.dir = np.array([1, 0, 0])
+        cubeModel.up = np.array([0, 0, 1])
+        cubeModel.scale = np.array([detection.size[0], detection.size[1], 0.1])
+        cubeModel.draw(self.openglScene.flatProgram)
+
+        # Reset the projection matrix to the camera's projection matrix:
+        proj = camera.getOpenGlCameraMatrix()
+        self.openglScene.flatProgram.setUniformMat4('proj', proj)
+
+
+    def renderOpenGL(self, camera, playerCamera):
         self.openglScene.prepareFrame(camera)
 
         # Carpark config:
@@ -59,9 +85,17 @@ class ParkingLotRender:
             cubeModel.draw(self.openglScene.flatProgram)
 
         # Draw cameras:
-        self.openglRenderCamera(camera, cubeModel, drawFrustum=False)
+        drawFrustum = (playerCamera!=camera)
+        self.openglRenderCamera(playerCamera, cubeModel, drawFrustum=drawFrustum)
         for cam in self.parkingLot.cameras:
-            self.openglRenderCamera(cam, cubeModel)
+            drawFrustum = (cam!=camera)
+            self.openglRenderCamera(cam, cubeModel, drawFrustum=drawFrustum)
+
+
+        # Draw detections:
+        for detection in self.parkingLot.detections:
+            self.openglDrawOnScreenDetection(detection, cubeModel, camera)
+
 
     def renderCairo(self, camera, fname):
         # Carpark config:
