@@ -15,13 +15,13 @@ import cyglfw3 as glfw
 from OpenGL.GL import *
 # from math import *
 
-from cbwindow import CbWindow
+from parkinglot.cbwindow import CbWindow
 
 # from render import renderScene, renderTest
-from openglscene import Scene
-from carparkrender import ParkingLotRender
-from carpark import *
-from playercamera import PlayerCamera
+from parkinglot.openglscene import Scene
+from parkinglot.carparkrender import ParkingLotRender
+from parkinglot.carpark import *
+from parkinglot.playercamera import PlayerCamera
 
 def processCameraSelectInput(window, parkingLot):
     if glfw.GetKey(window.window, glfw.KEY_GRAVE_ACCENT) == glfw.PRESS:
@@ -71,7 +71,7 @@ def buildParkingLot():
     parkingLot.cameras.append(PlayerCamera(f, framebufferSize, pos, dir, up, near, far))
 
     # Add detections:
-    parkingLot.detections.append(Detection([320, 240, 0], [320, 240]))
+    parkingLot.detections.append(Detection([180, 150, 0], [150, 200]))
     # parkingLot.detections.append(Detection([320, 240, 0], [320, 240]))
     # parkingLot.detections.append(Detection([framebufferSize[0]/2.0, framebufferSize[1]/2.0, 0], framebufferSize))
 
@@ -99,6 +99,7 @@ def main():
     parkingLot = buildParkingLot()
     mainRender = ParkingLotRender(parkingLot)
     window.mainRender = mainRender
+    window.cairoSavePath = cairoSavePath
 
     mainRender.renderCairo(window.playerCamera, cairoSavePath)
 

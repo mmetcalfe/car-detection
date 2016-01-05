@@ -30,7 +30,8 @@ class CbWindow:
         self.playerCamera = PlayerCamera(f, self.framebufferSize, pos, dir, up, near, far)
         self.currentCamera = self.playerCamera
         self.cameraLocked = True
-        self.mainRender = True
+        self.mainRender = None
+        self.cairoSavePath = None
 
         def key_callback(window, key, scancode, action, mods):
             if (key == glfw.KEY_ESCAPE and action == glfw.PRESS):
@@ -48,6 +49,9 @@ class CbWindow:
                 glfw.SetCursorPos(window, windowWidth / 2, windowHeight / 2)
                 self.currentCamera.lastCursor = np.array(glfw.GetCursorPos(window), np.float32)
                 self.currentCamera.lastUpdateTime = glfw.GetTime()
+
+            if (action == glfw.PRESS and key == glfw.KEY_R):
+                self.mainRender.renderCairo(self.playerCamera, self.cairoSavePath)
 
             pass
             # # print(

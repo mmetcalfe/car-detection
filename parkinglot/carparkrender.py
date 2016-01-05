@@ -115,23 +115,26 @@ class ParkingLotRender:
             [2, 3, 0]
         ]
 
-        vpInv = np.linalg.inv(viewPortMatrix(camera.framebufferSize))
-        def unvp(u):
-            x = vpInv*np.row_stack([np.mat(u).T, [1]])
-            x = x[:3]
-            # return np.array(x.T)
-            return np.array([x[0,0], x[1,0], x[2,0]])
+        # vpInv = np.linalg.inv(viewPortMatrix(camera.framebufferSize))
+        # def unvp(u):
+        #     x = vpInv*np.row_stack([np.mat(u).T, [1]])
+        #     x = x[:3]
+        #     # return np.array(x.T)
+        #     return np.array([x[0,0], x[1,0], x[2,0]])
+        #
+        # testverts = [unvp(v) for v in vertices]
+        # # print testverts
+        # # testverts = [camera.unprojectOpenGL(v) for v in testverts]
+        # testverts = [camera.projectPointToGround(v) for v in testverts]
+        # # print 'testverts', testverts
+        # vertices = testverts
 
-        testverts = [unvp(v) for v in vertices]
-        # print testverts
-        # testverts = [camera.unprojectOpenGL(v) for v in testverts]
-        testverts = [camera.projectPointToGround(v) for v in testverts]
-        # print 'testverts', testverts
-        vertices = testverts
+        vertices = self.getGroundProjectedDetection(detection, camera)
 
-        model.meshBuffers.append(MeshBuffer(vertices, normals, faces))
-        model.draw(self.openglScene.flatProgram, rawVertices=True)
-        model.release()
+        if not None in vertices:
+            model.meshBuffers.append(MeshBuffer(vertices, normals, faces))
+            model.draw(self.openglScene.flatProgram, rawVertices=True)
+            model.release()
 
     def renderOpenGL(self, camera, playerCamera):
         self.openglScene.prepareFrame(camera)
@@ -217,7 +220,8 @@ class ParkingLotRender:
         ctx.set_line_width(0.05)
         ctx.setCol(ctx.getRandCol())
         for cam in self.parkingLot.cameras:
-            ctx.setCol(ctx.getRandCol())
+            camCol = ctx.getRandCol()
+            ctx.setCol(camCol)
 
             # Draw cameras:
             trans2D = Transform2D.fromParts(cam.pos, cam.sphericalDir[1])
@@ -227,21 +231,21 @@ class ParkingLotRender:
             # Draw projected detections:
             for detection in self.parkingLot.detections:
                 pts = self.getGroundProjectedDetection(detection, cam)
+
+                # Highlight occupied parking spaces:
+                ctx.setCol(ctx.getRandCol())
+                for space in self.parkingLot.spaces:
+                    ctx.set_source_rgba(1, 0.8, 0.8, 0.5)
+                    if intersectRectangleConvexQuad(space, pts, ctx):
+                        ctx.rotatedRectangle(space)
+                        ctx.fill()
+
+                ctx.setCol(camCol)
                 ctx.move_to(pts[0][0], pts[0][1])
                 for pt in pts[1:]:
                     ctx.line_to(pt[0], pt[1])
                 ctx.close_path()
                 ctx.stroke()
-
-                # Highlight occupied parking spaces:
-                ctx.setCol(ctx.getRandCol())
-                for space in self.parkingLot.spaces:
-                    ctx.setCol(ctx.getRandCol())
-                    if intersectRectangleConvexQuad(space, pts, ctx):
-                        ctx.rotatedRectangle(space)
-                        ctx.fill()
-
-
 
 
         ctx.show_page()

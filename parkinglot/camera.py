@@ -236,14 +236,15 @@ class Camera(PCVCamera):
         c = self.center()
         d = u - c
 
-        dx, dy, dz = d
+        dx, dy, dz = d / np.linalg.norm(d)
 
         # gu = np.array([u[0], u[1], 0], np.float32)
         gc = np.array([c[0], c[1], 0], np.float32)
         gd = np.array([dx, dy, 0], np.float32)
 
         if dz > 0:
-            return gc + gd*1000
+            return None
+            # return gc + gd*1000
 
         z = float(c[2])
 
