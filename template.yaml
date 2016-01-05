@@ -1,0 +1,109 @@
+#
+# template.yaml
+#
+#    This file specifies the set of classifiers to train, and evaluate.
+#    It is to be used as the input file for 'perform_experiments.py', or
+#    'generate_trials.py'.
+#    Any parameter may be given a set of alternate values by replacing its value
+#    with a dictionary with the single key 'paramSet' whose value is an array of
+#    alternate values.
+#    A trial will be generated for every possible combination of alternate values.
+#
+#    Notes:
+#      - Specify all paths from the code directory.
+#      - Quote all numbers.
+
+# maxImageCountDiff: [644, 2532, 2132] # pos, neg, bak
+# maxImageCountDiff: [0, 1032, 1132] # pos, neg, bak
+
+# TODO: Consider adding window size as a parameter.
+
+# Acceptable limits:
+#  - number: 6000
+#  - posFrac: 0.66
+#  - hardNegFrac: 0.75
+
+# # Dataset for testing hardNegFrac hypothesis:
+# number: { paramSet: ['6000'] }
+# hardNegFrac: { paramSet: ['0.00', '0.2', '0.4', '0.6', '0.8', '1.0'] }
+# skipFrac: { paramSet: ['0.2'] }
+
+# # Dataset for testing classifier improvement due to number of samples:
+# number: { paramSet: ['1000', '2000', '3000', '4000', '5000', '6000'] }
+# hardNegFrac: { paramSet: ['0.2'] }
+# skipFrac: { paramSet: ['0.2'] }
+
+# # Combined dataset for testing both hypotheses:
+# number: { paramSet: ['1000', '2000', '3000', '4000', '5000', '6000'] }
+# hardNegFrac: { paramSet: ['0.00', '0.2', '0.4', '0.6', '0.8', 1.0] }
+# skipFrac: { paramSet: ['0.2'] }
+# posFrac: { paramSet: ['0.66'] }
+# featureType: { paramSet: [HAAR, LBP, HOG] }
+
+dataset:
+    description:
+        # # Specify fractions:
+        # number: { paramSet: ['32000'] } # Total number of samples.
+        # posFrac: { paramSet: ['0.16'] } # Fraction of samples that will be positive.
+        # hardNegFrac: { paramSet: ['0.0'] } # Fraction of *negative* samples that will be hard negatives.
+
+        # OR
+
+        # Specify numbers (use 'ALL' to select all images):
+        numPositive: 'ALL'
+        numNegative: 0
+        numBackground: 'ALL'
+
+        synsets: # Sample from only these synsets (use '.*' for all).
+            pos:
+                - '.*'
+                # - n02799071 # baseball
+            neg:
+                - '.*'
+            bak:
+                - '.*'
+
+    directory: # Directories from which to draw the different image types.
+        # bbinfo: /Users/mitchell/data/imagenet/bbinfo
+        # positive: /Users/mitchell/data/imagenet/images
+        bbinfo: /Users/mitchell/data/kitti/bbinfo
+        positive: /Users/mitchell/data/kitti/training/image_2
+        background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
+        negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
+training:
+    basic:
+        data: classifiers
+        numStages: '12' # <number_of_stages = 20>]
+        numPos: '5500' # Number of positive samples used to train each stage of the classifier.
+        numNeg: '60000' # Number of negative samples used to train each stage of the classifier.
+    cascade:
+        featureType: { paramSet: [HOG] } # {HAAR(default), LBP, HOG}
+        # featureType: { paramSet: [HAAR, LBP, HOG] } # {HAAR(default), LBP, HOG}
+        sampleSize: ['64', '32'] # [24, 24]
+    boost:
+        minHitRate: '0.99' # 0.995
+        maxFalseAlarmRate: '0.5' # 0.5
+        weightTrimRate: '0.95' # 0.95
+        maxDepth: '1' # 1
+        maxWeakCount: '100' # 100
+
+        # # TODO: Consider just using numPos instead of skipFrac.
+        # # skipFrac: { paramSet: ['0.1'] } # http://answers.opencv.org/question/4368/
+        # skipFrac: { paramSet: ['0.2'] } # http://answers.opencv.org/question/4368/
+        #                 # While the selection, some new positive samples from
+        #                 # vec-file can be recognized as background right away
+        #                 # by the current cascade and we skip such samples. The
+        #                 # count of skipped sample depends on your vec-file
+        #                 # (how different samples are in it) and other training
+        #                 # parameters. This is an estimate of the total number
+        #                 # of skipped samples from vec-file (for all stages) as
+        #                 # a fraction of the total number of positive samples.
+    haarFeature:
+        mode: ALL # Use extended Haar features
+testing:
+    directories:
+        # - /Users/mitchell/data/imagenet/test
+        # - /Users/mitchell/data/car-detection-test-photos
+        - /Users/mitchell/data/kitti/testing/image_2
+        # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative_test_set/
+        # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_test_set/

@@ -1,4 +1,6 @@
 *.pyc
 *.pdf
-models/House01/
-models/eagle 5 transport/
+parkinglot/models/House01/
+parkinglot/models/eagle 5 transport/
+/trials/
+/*.png
