@@ -3,8 +3,8 @@ from openglscene import *
 from camera import viewPortMatrix
 
 import cairo
-from drawing2d import ExtendedCairoContext
-from geometry import *
+from ..carutils.drawing2d import ExtendedCairoContext
+from ..carutils.geometry import *
 
 def placeModelWithinRectangle(model, rect, zPos=0, zScale=1):
     xPos, yPos, angle = rect.trans
@@ -17,7 +17,7 @@ def placeModelWithinRectangle(model, rect, zPos=0, zScale=1):
     model.scale = np.array([xScale, yScale, zScale])
 
 
-class ParkingLotRender:
+class ParkingLotRender(object):
     def __init__(self, parkingLot):
         self.openglScene = Scene()
         self.parkingLot = parkingLot

@@ -19,7 +19,7 @@ class KittiOcclusion(Enum):
     full = 2
     unknown = 3
 
-class KittiLabel:
+class KittiLabel(object):
     def __init__(self):
         self.type = None
         self.truncation = None
@@ -64,10 +64,21 @@ class KittiLabel:
 
         return map(int, lst)
 
+    @opencv_bbox.setter
+    def opencv_bbox(self, xywh):
+        x, y, w, h = xywh
+        self.x1 = x
+        self.y1 = y
+
+        # Note the subtraction, since (x,y) is the top-left grid cell (pixel),
+        # axis-aligned width is specified in full grid cells:
+        self.x2 = x + w - 1
+        self.y2 = y + h - 1
+
     @property
     def aspect(self):
-        w = self.x2 - self.x1
-        h = self.y2 - self.y1
+        w = self.x2 - self.x1 + 1
+        h = self.y2 - self.y1 + 1
         return w / float(h)
 
     # KittiLabel.fromString :: String -> KittiLabel
@@ -131,8 +142,8 @@ def labelIsPositive(label, category_types):
     correct_truncation = label.truncation < 0.1
 
     # 0 = visible, 1 = partly occluded, 2 = fully occluded, 3 = unknown
-    # correct_occlusion = label.occlusion.value < 2
-    correct_occlusion = label.occlusion.value == 0
+    correct_occlusion = label.occlusion.value < 2
+    # correct_occlusion = label.occlusion.value == 0
 
     return correct_type and correct_truncation and correct_occlusion
 
@@ -156,8 +167,29 @@ def getCarDetectionPositiveImageIndices(kitti_base, category_types):
 
     return positive_indices
 
-# saveOpenCVBoundingBoxInfo :: String -> [String] -> [Int] -> IO ()
-def saveOpenCVBoundingBoxInfo(kitti_base, category_types, kitti_indices):
+# # saveOpenCVBoundingBoxInfoFromIndices :: String -> [String] -> [Int] -> IO ()
+# def saveOpenCVBoundingBoxInfoFromIndices(kitti_base, category_types, kitti_indices):
+#     bbinfo_dir = '{}/bbinfo'.format(kitti_base)
+#     if not os.path.isdir(bbinfo_dir):
+#         print 'Creating directory:', bbinfo_dir
+#         os.makedirs(bbinfo_dir)
+#
+#     bbinfo_file = '{}/kitti__bbinfo.dat'.format(bbinfo_dir)
+#
+#     bbinfo_lines = []
+#     for index in kitti_indices:
+#         img_path = imagePath(kitti_base, index)
+#         labels = readLabels(kitti_base, index)
+#         pos_labels = filter(lambda lb: labelIsPositive(lb, category_types), labels)
+#         bbox_strings = [' '.join(map(str, l.opencv_bbox)) for l in pos_labels]
+#         num = len(bbox_strings)
+#         bbinfo_line = '{} {} {}'.format(img_path, num, ' '.join(bbox_strings))
+#         bbinfo_lines.append(bbinfo_line)
+#
+#     with open(bbinfo_file, 'w') as fh:
+#         fh.write('\n'.join(bbinfo_lines))
+
+def saveOpenCVBoundingBoxInfo(kitti_base, kitti_labels):
     bbinfo_dir = '{}/bbinfo'.format(kitti_base)
     if not os.path.isdir(bbinfo_dir):
         print 'Creating directory:', bbinfo_dir
@@ -165,16 +197,27 @@ def saveOpenCVBoundingBoxInfo(kitti_base, category_types, kitti_indices):
 
     bbinfo_file = '{}/kitti__bbinfo.dat'.format(bbinfo_dir)
 
+    # bbinfo_map :: Map Path [opencv_bbox]
+    bbinfo_map = {}
+
+    # Save bounding boxes to the bbinfo_map.
+    # Note: Assume that while multiple labels may be from the same image, that
+    #       the same label will not appear multiple times.
+    for label in kitti_labels:
+        img_path = imagePath(kitti_base, label.imageIndex)
+        if not img_path in bbinfo_map:
+            bbinfo_map[img_path] = []
+        bbinfo_map[img_path].append(label.opencv_bbox)
+
+    # Convert the bbinfo_map into a list of bbinfo_lines:
     bbinfo_lines = []
-    for index in kitti_indices:
-        img_path = imagePath(kitti_base, index)
-        labels = readLabels(kitti_base, index)
-        pos_labels = filter(lambda lb: labelIsPositive(lb, category_types), labels)
-        bbox_strings = [' '.join(map(str, l.opencv_bbox)) for l in pos_labels]
-        num = len(bbox_strings)
+    for fname, bboxes in bbinfo_map.iteritems():
+        num = len(bboxes)
+        bbox_strings = [' '.join(map(str, b)) for b in bboxes]
         bbinfo_line = '{} {} {}'.format(img_path, num, ' '.join(bbox_strings))
         bbinfo_lines.append(bbinfo_line)
 
+    # Write the bbinfo_lines to the bbinfo_file:
     with open(bbinfo_file, 'w') as fh:
         fh.write('\n'.join(bbinfo_lines))
 
@@ -182,20 +225,14 @@ def getPositiveImageLabels(kitti_base, category_types):
     pos_indices = getCarDetectionPositiveImageIndices(kitti_base, category_types)
 
     pos_labels = []
-
     for index in pos_indices:
-        # img_path = imagePath(kitti_base, index)
         index_labels = readLabels(kitti_base, index)
         index_pos_labels = filter(lambda lb: labelIsPositive(lb, category_types), index_labels)
         pos_labels.extend(index_pos_labels)
-        # bbox_strings = [' '.join(map(str, l.opencv_bbox)) for l in pos_labels]
-        # num = len(bbox_strings)
-        # bbinfo_line = '{} {} {}'.format(img_path, num, ' '.join(bbox_strings))
-        # bbinfo_lines.append(bbinfo_line)
     return pos_labels
 
-import cv2
 def getCroppedSampleFromLabel(kitti_base, label):
+    import cv2
     if label.imageIndex is None:
         print 'ERROR: label.imageIndex is None'
         return None
@@ -216,10 +253,47 @@ def getCroppedSampleFromLabel(kitti_base, label):
     # cv2.destroyAllWindows()
     return cropped
 
+def isLabelRectWithinImage(label):
+    img_path = imagePath(kitti_base, label.imageIndex)
+
+    # Use PIL instead of OpenCV, as it does not eagerly load image raster data:
+    # img = cv2.imread(img_path)
+    # img_h, img_w = img.shape[:2]
+    import PIL.Image
+    with PIL.Image.open(img_path) as img:
+        img_w, img_h = img.size
+
+    tlc = label.x1 >= 0 and label.y1 >= 0
+    brc = label.x2 < img_w and label.y2 < img_h
+    return tlc and brc
+
 if __name__ == '__main__':
+    import cardetection.carutils.geometry as gm
     kitti_base = '/Users/mitchell/data/kitti/'
+
+    if not os.path.isdir(kitti_base):
+        print 'ERROR: KITTI base directory "{}" does not exist.'.format(kitti_base)
+        import sys
+        sys.exit(1)
 
     # category_types = ['Car', 'Truck', 'Van']
     category_types = ['Car', 'Van']
-    pos_indices = getCarDetectionPositiveImageIndices(kitti_base, category_types)
-    saveOpenCVBoundingBoxInfo(kitti_base, category_types, pos_indices)
+    print 'Loading labels...'
+    pos_labels = getPositiveImageLabels(kitti_base, category_types)
+    # pos_indices = getCarDetectionPositiveImageIndices(kitti_base, category_types)
+
+    # Modify label bounding boxes:
+    print 'Modifying label bounding boxes...'
+    carShape = (64, 96)
+    carAspect = carShape[1]/float(carShape[0])
+    for label in pos_labels:
+        rect = gm.Rectangle.fromList(label.opencv_bbox)
+        aspectRect = gm.extendBoundingBox(rect, carAspect)
+        paddedRect = gm.padBoundingBox(aspectRect, (0.1, 0.1))
+        label.opencv_bbox = [paddedRect.x, paddedRect.y, paddedRect.w, paddedRect.h]
+
+    print 'Filtering bad labels...'
+    labels = filter(lambda l: isLabelRectWithinImage(l), pos_labels)
+
+    print 'Saving {} of {} labels for training.'.format(len(labels), len(pos_labels))
+    saveOpenCVBoundingBoxInfo(kitti_base, pos_labels)

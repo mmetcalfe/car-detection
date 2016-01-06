@@ -98,55 +98,6 @@ def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, 
 
     return image_sample
 
-class Rectangle(object):
-    def __init__(self, x, y, w, h):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-
-    def __repr__(self):
-        return '{{Rectangle | x:{}, y:{}, w:{}, h:{}}}'.format(self.x, self.y, self.w, self.h)
-
-    # Rectangle.fromList :: [Int] -> Rectangle
-    @classmethod
-    def fromList(cls, xywh):
-        x, y, w, h = xywh
-        return cls(x, y, w, h)
-
-# extendBoundingBox :: Rectangle -> Float -> Rectangle
-def extendBoundingBox(rect, new_aspect):
-    new_aspect = float(new_aspect)
-    aspect = rect.w / float(rect.h)
-
-    # New dimensions from aspect ratio:
-    w, h = rect.w, rect.h
-    if new_aspect >= aspect:
-        w = int(np.round(rect.h * new_aspect))
-    else:
-        h = int(np.round(rect.w / new_aspect))
-
-    # Old centre:
-    cx = rect.x + (rect.w - 1) / 2.0
-    cy = rect.y + (rect.h - 1) / 2.0
-    # New corner from centre and new width:
-    x = int(np.round(cx - (w - 1) / 2.0))
-    y = int(np.round(cy - (h - 1) / 2.0))
-    return Rectangle(x, y, w, h)
-
-# padBoundingBox :: Rectangle -> (Float, Float) -> Rectangle
-def padBoundingBox(rect, padding_fracs):
-    w = int(np.round(rect.w * (1.0 + padding_fracs[0])))
-    h = int(np.round(rect.h * (1.0 + padding_fracs[1])))
-
-    # Old centre:
-    cx = rect.x + (rect.w - 1) / 2.0
-    cy = rect.y + (rect.h - 1) / 2.0
-    # New corner from centre and new width:
-    x = int(np.round(cx - (w - 1) / 2.0))
-    y = int(np.round(cy - (h - 1) / 2.0))
-    return Rectangle(x, y, w, h)
-
 # From: http://stackoverflow.com/a/312464
 # chunks :: [Int] -> [[Int]]
 def chunks(l, n):

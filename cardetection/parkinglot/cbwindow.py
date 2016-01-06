@@ -4,7 +4,7 @@ import numpy as np
 
 from playercamera import PlayerCamera
 
-class CbWindow:
+class CbWindow(object):
     def __init__(self, width, height, title):
         glfw.WindowHint(glfw.CONTEXT_VERSION_MAJOR, 4)
         glfw.WindowHint(glfw.CONTEXT_VERSION_MINOR, 1)

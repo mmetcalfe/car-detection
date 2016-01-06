@@ -107,7 +107,7 @@ class Transform2D(np.ndarray):
     def rotation(self, other):
         assert(self.shape[0] == 3)
 
-class RotatedRectangle:
+class RotatedRectangle(object):
     def __init__(self, trans2d, size):
         self.trans = Transform2D.fromVec(trans2d)
         self.size = np.array(size)
@@ -141,3 +141,60 @@ def intersectRectangleConvexQuad(rect, pts, ctx):
         return True
 
     return False
+
+
+class Rectangle(object):
+    def __init__(self, x, y, w, h):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+
+    def __repr__(self):
+        return '{{Rectangle | x:{}, y:{}, w:{}, h:{}}}'.format(self.x, self.y, self.w, self.h)
+
+    # Rectangle.fromList :: [Int] -> Rectangle
+    @classmethod
+    def fromList(cls, xywh):
+        x, y, w, h = xywh
+        return cls(x, y, w, h)
+
+    # # Rectangle.fromPixelRanges :: Float -> Float -> Float -> Float -> Rectangle
+    # @classmethod
+    # def fromPixelRanges(cls, x1, y1, x2, y2):
+    #     w = x2 - x1 + 1
+    #     h = y2 - y1 + 1
+    #     return cls(x1, y1, w, h)
+
+# extendBoundingBox :: Rectangle -> Float -> Rectangle
+def extendBoundingBox(rect, new_aspect):
+    new_aspect = float(new_aspect)
+    aspect = rect.w / float(rect.h)
+
+    # New dimensions from aspect ratio:
+    w, h = rect.w, rect.h
+    if new_aspect >= aspect:
+        w = int(np.round(rect.h * new_aspect))
+    else:
+        h = int(np.round(rect.w / new_aspect))
+
+    # Old centre:
+    cx = rect.x + (rect.w - 1) / 2.0
+    cy = rect.y + (rect.h - 1) / 2.0
+    # New corner from centre and new width:
+    x = int(np.round(cx - (w - 1) / 2.0))
+    y = int(np.round(cy - (h - 1) / 2.0))
+    return Rectangle(x, y, w, h)
+
+# padBoundingBox :: Rectangle -> (Float, Float) -> Rectangle
+def padBoundingBox(rect, padding_fracs):
+    w = int(np.round(rect.w * (1.0 + padding_fracs[0])))
+    h = int(np.round(rect.h * (1.0 + padding_fracs[1])))
+
+    # Old centre:
+    cx = rect.x + (rect.w - 1) / 2.0
+    cy = rect.y + (rect.h - 1) / 2.0
+    # New corner from centre and new width:
+    x = int(np.round(cx - (w - 1) / 2.0))
+    y = int(np.round(cy - (h - 1) / 2.0))
+    return Rectangle(x, y, w, h)

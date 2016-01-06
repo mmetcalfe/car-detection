@@ -7,16 +7,23 @@ from kitti import getCroppedSampleFromLabel
 
 # From: http://www.pyimagesearch.com/2015/04/06/zero-parameter-automatic-canny-edge-detection-with-python-and-opencv/
 def auto_canny(image, sigma=0.33):
-	# compute the median of the single channel pixel intensities
-	v = np.median(image)
+    # compute the median of the single channel pixel intensities
+    v = np.median(image)
 
-	# apply automatic Canny edge detection using the computed median
-	lower = int(max(0, (1.0 - sigma) * v))
-	upper = int(min(255, (1.0 + sigma) * v))
-	edged = cv2.Canny(image, lower, upper)
+    # apply automatic Canny edge detection using the computed median
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+    edged = cv2.Canny(image, lower, upper)
 
-	# return the edged image
-	return edged
+    # return the edged image
+    return edged
+
+def resizeSample(sample, shape, label):
+    # Use INTER_AREA for shrinking and INTER_LINEAR for enlarging:
+    targetIsSmaller = shape[1] < (label.x2 - label.x1 + 1) # targetWidth < sampleWidth
+    interp = cv2.INTER_AREA if targetIsSmaller else cv2.INTER_LINEAR
+    resized = cv2.resize(sample, (shape[1], shape[0]), interpolation=interp)
+    return resized
 
 def saveAverageImage(kitti_base, pos_labels, shape, fname, avg_num=None):
     num_images = float(len(pos_labels))
@@ -24,8 +31,8 @@ def saveAverageImage(kitti_base, pos_labels, shape, fname, avg_num=None):
     if avg_num is None:
         avg_num = num_images
 
-    # avg_img = np.zeros((shape[1],shape[0],3), np.float32)
-    avg_img = np.zeros((shape[1],shape[0]), np.float32)
+    # avg_img = np.zeros((shape[0],shape[1],3), np.float32)
+    avg_img = np.zeros(shape, np.float32)
     progressbar = ProgressBar('Averaging ' + fname, max=len(pos_labels))
     num = 0
     for label in pos_labels:
@@ -36,16 +43,12 @@ def saveAverageImage(kitti_base, pos_labels, shape, fname, avg_num=None):
         sample = getCroppedSampleFromLabel(kitti_base, label)
         # sample = np.float32(sample)
 
-        resized = cv2.resize(sample, shape, interpolation=cv2.INTER_AREA)
+        resized = resizeSample(sample, shape, label)
 
         resized = auto_canny(resized)
         resized = np.float32(resized)
 
-        # print avg_img.shape
-        # print resized.shape
         avg_img = cv2.add(avg_img, resized / float(avg_num))
-        # cv2.imshow("resized", resized)
-        # cv2.waitKey(0)
     progressbar.finish()
 
     cv2.imwrite(fname, avg_img)
@@ -54,8 +57,8 @@ def saveSamplesMosaic(kitti_base, pos_labels, mosaicShape, tileShape, fname):
     import random
 
     imgShape = (mosaicShape[0] * tileShape[0], mosaicShape[1] * tileShape[1])
-    mosaic_img = np.zeros((imgShape[1],imgShape[0],3), np.float32)
-    # avg_img = np.zeros((imgShape[1],imgShape[0]), np.float32)
+    mosaic_img = np.zeros((imgShape[0],imgShape[1],3), np.float32)
+    # avg_img = np.zeros((imgShape[0],imgShape[1]), np.float32)
 
     numTiles = mosaicShape[0]*mosaicShape[1]
     labels = pos_labels
@@ -70,13 +73,9 @@ def saveSamplesMosaic(kitti_base, pos_labels, mosaicShape, tileShape, fname):
             label = labels[index]
             index += 1
             sample = getCroppedSampleFromLabel(kitti_base, label)
-            # sample = np.float32(sample)
 
-            resized = cv2.resize(sample, tileShape, interpolation=cv2.INTER_AREA)
-            # resized = auto_canny(resized)
-            # resized = np.float32(resized)
+            resized = resizeSample(sample, tileShape, label)
 
-            # avg_img = cv2.add(avg_img, resized / float(avg_num))
             trs = tileShape[0]
             tcs = tileShape[1]
             tr = r * trs
@@ -99,6 +98,9 @@ def get_gradient(im):
 
 # Based on: http://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
 def alignImages(imgA, imgB):
+    if cv2.__version__ != '3.1.0':
+        print 'ERROR: This script requires OpenCV 3.1.0, but cv2.__version__ ==', cv2.__version__
+        sys.exit(1)
     # Read 8-bit color image.
     # This is an image in which the three channels are
     # concatenated vertically.
@@ -165,7 +167,7 @@ def alignImages(imgA, imgB):
 
 def get_hog(image):
     # winSize = (64,64)
-    winSize = image.shape[:2] # TODO: Check winSize when not square.
+    winSize = (image.shape[1], image.shape[0])
     blockSize = (8,8)
     # blockSize = (16,16)
     blockStride = (8,8)
@@ -204,7 +206,8 @@ def find_label_clusters(kitti_base, kittiLabels, shape, num_clusters, descriptor
         for label in kittiLabels:
             progressbar.next()
             img = getCroppedSampleFromLabel(kitti_base, label)
-            img = cv2.resize(img, shape, interpolation=cv2.INTER_AREA)
+            # img = cv2.resize(img, (shape[1], shape[0]), interpolation=cv2.INTER_AREA)
+            img = resizeSample(img, shape, label)
             hist = get_hog(img)
             descriptors.append(hist)
         progressbar.finish()

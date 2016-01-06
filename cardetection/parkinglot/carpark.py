@@ -2,7 +2,7 @@ import math
 import numpy as np
 from geometry import *
 
-class Vehicle:
+class Vehicle(object):
     def __init__(self, position, rotation, boxSize):
         assert(boxSize.shape[0] == 3)
         assert(position.shape[0] == 3)
@@ -24,7 +24,7 @@ class ParkingSpace(RotatedRectangle):
 #     """
 #     pass
 
-class ParkingLot:
+class ParkingLot(object):
     def __init__(self, size, centre, canvasSize):
         assert(size.shape[0] == 2)
         assert(centre.shape[0] == 2)

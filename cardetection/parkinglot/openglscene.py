@@ -61,7 +61,7 @@ def getSizeOfOpenGlType(type):
     else:
         raise ValueError("Unknown type enum value " + type + ".")
 
-class Buffer:
+class Buffer(object):
     def __init__(self):
         self.id = glGenBuffers(1)
         self.count = 0
@@ -77,7 +77,7 @@ class Buffer:
         glBufferData(target, data.nbytes, data, usage)
         self.count = len(data)
 
-class VertexAttribute:
+class VertexAttribute(object):
     def __init__(self, name, size, typ, normalized, isPadding):
         self.name = name
         self.size = size
@@ -85,7 +85,7 @@ class VertexAttribute:
         self.normalized = normalized
         self.isPadding = isPadding
 
-class VertexArray:
+class VertexArray(object):
     def __init__(self):
         self.id = glGenVertexArrays(1)
 
@@ -124,7 +124,7 @@ class VertexArray:
 
             offset += attrib.size * getSizeOfOpenGlType(attrib.type)
 
-class Shader:
+class Shader(object):
     def __init__(self, shaderType):
         self.id = glCreateShader(shaderType)
         self.type = shaderType
@@ -186,7 +186,7 @@ class Shader:
             raise ValueError(": Compile error in shader: " + infoLogBuff + ".")
 
 
-class ShaderProgram:
+class ShaderProgram(object):
     def __init__(self, name, shaders):
         self.id = glCreateProgram()
         self.name = name
@@ -285,7 +285,7 @@ class ShaderProgram:
         if linkStatus != True:
             raise ValueError("Link error in shader program " + str(self.name) + "': " + str(infoLogBuff))
 
-class MeshBuffer:
+class MeshBuffer(object):
 
     @staticmethod
     def facesToElements(faces):
@@ -370,7 +370,7 @@ class MeshBuffer:
         glDrawElements(GL_TRIANGLES, self.element.count, GL_UNSIGNED_INT, ctypes.c_void_p(0))
 
 
-class Model:
+class Model(object):
     def __init__(self, aiModel=None):
         self.aiModel = aiModel
 
@@ -446,7 +446,7 @@ class Model:
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
 
-class Scene:
+class Scene(object):
     def __init__(self):
         self.models = {}
 
