@@ -74,10 +74,12 @@ training:
     basic:
         data: classifiers
         numStages: '12' # <number_of_stages = 20>]
-        numPos: '5500' # Number of positive samples used to train each stage of the classifier.
-        numNeg: '60000' # Number of negative samples used to train each stage of the classifier.
+        # numPos: '5500' # Number of positive samples used to train each stage of the classifier.
+        # numNeg: '60000' # Number of negative samples used to train each stage of the classifier.
+        numPos: '500' # Number of positive samples used to train each stage of the classifier.
+        numNeg: '1000' # Number of negative samples used to train each stage of the classifier.
     cascade:
-        featureType: { paramSet: [HOG] } # {HAAR(default), LBP, HOG}
+        featureType: { paramSet: [LBP] } # {HAAR(default), LBP, HOG}
         # featureType: { paramSet: [HAAR, LBP, HOG] } # {HAAR(default), LBP, HOG}
         sampleSize: ['64', '32'] # [24, 24]
     boost:

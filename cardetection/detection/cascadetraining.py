@@ -12,6 +12,8 @@ import re
 import sys
 from pprint import pprint
 
+import cardetection.carutils.geometry as gm
+
 class TooFewImagesError(Exception):
     def __init__(self, presentCounts, requiredCounts):
         self.presentCounts = presentCounts
@@ -119,7 +121,7 @@ def rectanglesFromCacheString(rects_str):
     if int(num) > 0:
         objs = list(chunks(obj_ints, 4))
 
-    rects = map(Rectangle.fromList, objs)
+    rects = map(gm.Rectangle.fromList, objs)
 
     assert len(rects) == int(num)
     return rects
@@ -463,7 +465,12 @@ def viewPositiveSamples(classifier_yaml, output_dir):
 
     # for img_path in glob.glob("{}/*_*.jpg".format(positive_dir)):
     # for img_path in listImagesInDirectory(positive_dir):
-    for img_path in sampleTrainingImages(positive_dir, ['.*'], None, require_bboxes=True, bbinfo_dir=bbinfo_dir):
+
+    pos_samples = sampleTrainingImages(positive_dir, ['.*'], None, require_bboxes=True, bbinfo_dir=bbinfo_dir)
+
+    print 'Selected {} positive samples.'.format(len(pos_samples))
+
+    for img_path in pos_samples:
         img = cv2.imread(img_path)
 
         key = img_path.split('/')[-1]
@@ -474,11 +481,11 @@ def viewPositiveSamples(classifier_yaml, output_dir):
         for rect in rects:
             cvDrawRectangle(img, rect, (255,0,0),2)
 
-            aspectRect = extendBoundingBox(rect, 83/64.0)
-            cvDrawRectangle(img, aspectRect, (0,255,0),2)
-
-            paddedRect = padBoundingBox(aspectRect, (0.1, 0.1))
-            cvDrawRectangle(img, paddedRect, (0,0,255),2)
+            # aspectRect = gm.extendBoundingBox(rect, 83/64.0)
+            # cvDrawRectangle(img, aspectRect, (0,255,0),2)
+            #
+            # paddedRect = gm.padBoundingBox(aspectRect, (0.1, 0.1))
+            # cvDrawRectangle(img, paddedRect, (0,0,255),2)
 
         cv2.imshow('img', img)
         cv2.waitKey(0)

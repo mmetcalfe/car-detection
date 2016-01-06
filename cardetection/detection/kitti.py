@@ -211,7 +211,7 @@ def saveOpenCVBoundingBoxInfo(kitti_base, kitti_labels):
 
     # Convert the bbinfo_map into a list of bbinfo_lines:
     bbinfo_lines = []
-    for fname, bboxes in bbinfo_map.iteritems():
+    for img_path, bboxes in bbinfo_map.iteritems():
         num = len(bboxes)
         bbox_strings = [' '.join(map(str, b)) for b in bboxes]
         bbinfo_line = '{} {} {}'.format(img_path, num, ' '.join(bbox_strings))
@@ -265,6 +265,7 @@ def isLabelRectWithinImage(label):
 
     tlc = label.x1 >= 0 and label.y1 >= 0
     brc = label.x2 < img_w and label.y2 < img_h
+
     return tlc and brc
 
 if __name__ == '__main__':
@@ -296,4 +297,4 @@ if __name__ == '__main__':
     labels = filter(lambda l: isLabelRectWithinImage(l), pos_labels)
 
     print 'Saving {} of {} labels for training.'.format(len(labels), len(pos_labels))
-    saveOpenCVBoundingBoxInfo(kitti_base, pos_labels)
+    saveOpenCVBoundingBoxInfo(kitti_base, labels)

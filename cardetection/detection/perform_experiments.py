@@ -16,7 +16,7 @@ import random
 import math
 from concurrent import futures
 
-from train_classifier import loadYamlFile
+import cascadetraining as training
 
 NUM_THREADS = 6
 
@@ -90,17 +90,14 @@ if __name__ == "__main__":
 
 	trial_files = glob.glob("{}/*.yaml".format(args.output_dir))
 
-	print '===== VIEW SAMPLES ====='
-	print 'Note: Comment out this section if you actually want to train anything.'
-	from train_classifier import viewPositiveSamples
-	for trial_yaml in trial_files:
-		classifier_yaml = loadYamlFile(trial_yaml)
-		output_dir = trial_yaml.split('.yaml')[0]
-		viewPositiveSamples(classifier_yaml, output_dir)
+	# print '===== VIEW SAMPLES ====='
+	# print 'Note: Comment out this section if you actually want to train anything.'
+	# for trial_yaml in trial_files:
+	# 	classifier_yaml = training.loadYamlFile(trial_yaml)
+	# 	output_dir = trial_yaml.split('.yaml')[0]
+	# 	training.viewPositiveSamples(classifier_yaml, output_dir)
 
 	print '===== PREPROCESS TRIALS ====='
-	from train_classifier import preprocessTrial
-	from train_classifier import TooFewImagesError
 
 	preprocessing_was_successful = True
 	maxImageCountDiff = (0, 0, 0)
@@ -108,13 +105,13 @@ if __name__ == "__main__":
 	for trial_yaml in trial_files:
 		print '    Preprocessing: {}'.format(trial_yaml)
 		# Read classifier training file:
-		classifier_yaml = loadYamlFile(trial_yaml)
+		classifier_yaml = training.loadYamlFile(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
 
 		# Preprocess the trial:
 		try:
-			preprocessTrial(classifier_yaml, output_dir)
-		except TooFewImagesError as e:
+			training.preprocessTrial(classifier_yaml, output_dir)
+		except training.TooFewImagesError as e:
 			preprocessing_was_successful = False
 			print e
 			imgCountDiff = map(lambda (p, r): r - p, zip(e.presentCounts, e.requiredCounts))
@@ -127,11 +124,10 @@ if __name__ == "__main__":
 
 
 	print '===== CREATE SAMPLES ====='
-	from train_classifier import createSamples
 
 	for trial_yaml in trial_files:
 		# Read classifier training file:
-		classifier_yaml = loadYamlFile(trial_yaml)
+		classifier_yaml = training.loadYamlFile(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
 		trained_classifier_xml = '{}/data/cascade.xml'.format(output_dir)
 
@@ -139,17 +135,16 @@ if __name__ == "__main__":
 			print '    Classifier already trained: {}'.format(trained_classifier_xml)
 		else:
 			print '    Creating samples for: {}'.format(trial_yaml)
-			createSamples(classifier_yaml, output_dir)
+			training.createSamples(classifier_yaml, output_dir)
 
 
 	print '===== TRAIN CLASSIFIERS ====='
-	from train_classifier import trainClassifier
 
 	def doTraining(fname):
 		# Read classifier training file:
-		classifier_yaml = loadYamlFile(fname)
+		classifier_yaml = training.loadYamlFile(fname)
 		output_dir = fname.split('.yaml')[0]
-		trainClassifier(classifier_yaml, output_dir)
+		training.trainClassifier(classifier_yaml, output_dir)
 
 	with futures.ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
 		future_results = dict((executor.submit(doTraining, fname), fname) for fname in trial_files)
@@ -166,21 +161,20 @@ if __name__ == "__main__":
 	# # (check for bad words: 'cannot', 'error', 'not', 'fail')
 
 	print '===== RUN CLASSIFIERS ====='
-	from train_classifier import runClassifier
 
 	# # TODO: Parallelise this code.
 	# for trial_yaml in trial_files:
 	# 	# Read classifier training file:
-	# 	classifier_yaml = loadYamlFile(trial_yaml)
+	# 	classifier_yaml = training.loadYamlFile(trial_yaml)
 	# 	output_dir = trial_yaml.split('.yaml')[0]
 	#
-	# 	runClassifier(classifier_yaml, output_dir)
+	# 	training.runClassifier(classifier_yaml, output_dir)
 
 	def doRunning(trial_yaml):
 		# Read classifier training file:
-		classifier_yaml = loadYamlFile(trial_yaml)
+		classifier_yaml = training.loadYamlFile(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
-		runClassifier(classifier_yaml, output_dir)
+		training.runClassifier(classifier_yaml, output_dir)
 
 	synchronous = True
 	if synchronous:
