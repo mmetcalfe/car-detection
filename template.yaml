@@ -73,17 +73,17 @@ dataset:
 training:
     basic:
         data: classifiers
-        numStages: '12' # <number_of_stages = 20>]
-        # numPos: '5500' # Number of positive samples used to train each stage of the classifier.
-        # numNeg: '60000' # Number of negative samples used to train each stage of the classifier.
-        numPos: '500' # Number of positive samples used to train each stage of the classifier.
-        numNeg: '1000' # Number of negative samples used to train each stage of the classifier.
+        numStages: '17' # <number_of_stages = 20>]
+        numPos: '5500' # Number of positive samples used to train each stage of the classifier.
+        numNeg: '30000' # Number of negative samples used to train each stage of the classifier.
+        # numPos: '2000' # Number of positive samples used to train each stage of the classifier.
+        # numNeg: '10000' # Number of negative samples used to train each stage of the classifier.
     cascade:
-        featureType: { paramSet: [LBP] } # {HAAR(default), LBP, HOG}
+        featureType: { paramSet: [HOG] } # {HAAR(default), LBP, HOG}
         # featureType: { paramSet: [HAAR, LBP, HOG] } # {HAAR(default), LBP, HOG}
-        sampleSize: ['64', '32'] # [24, 24]
+        sampleSize: ['96', '64'] # [24, 24]
     boost:
-        minHitRate: '0.99' # 0.995
+        minHitRate: '0.995' # 0.995
         maxFalseAlarmRate: '0.5' # 0.5
         weightTrimRate: '0.95' # 0.95
         maxDepth: '1' # 1
@@ -105,7 +105,7 @@ training:
 testing:
     directories:
         # - /Users/mitchell/data/imagenet/test
-        # - /Users/mitchell/data/car-detection-test-photos
-        - /Users/mitchell/data/kitti/testing/image_2
+        - /Users/mitchell/data/car-detection-test-photos
+        # - /Users/mitchell/data/kitti/testing/image_2
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative_test_set/
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_test_set/

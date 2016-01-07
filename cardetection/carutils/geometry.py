@@ -121,7 +121,10 @@ class RotatedRectangle(object):
 
         return True
 
-def intersectRectTri(rect, tri, ctx):
+# intersectRectangleConvexQuad :: RotatedRectangle -> [np.array] -> Bool
+def intersectRectTri(rrect, tri, ctx):
+    # Just sample a bunch of points.
+    # Note: This could obviously be made much faster/more accurate.
     for u in np.arange(0, 1, 0.05):
         for v in np.arange(0, 1, 0.05):
             if u + v > 1:
@@ -130,18 +133,18 @@ def intersectRectTri(rect, tri, ctx):
             q = u * tri[0] + v * tri[1] + w * tri[2]
             # ctx.circle(q, 0.02)
             # ctx.fill()
-            if rect.contains(q):
+            if rrect.contains(q):
                 return True
     return False
 
-def intersectRectangleConvexQuad(rect, pts, ctx):
-    if intersectRectTri(rect, [pts[0], pts[1], pts[2]], ctx):
+# intersectRectangleConvexQuad :: RotatedRectangle -> [np.array] -> Bool
+def intersectRectangleConvexQuad(rrect, pts, ctx):
+    if intersectRectTri(rrect, [pts[0], pts[1], pts[2]], ctx):
         return True
-    if intersectRectTri(rect, [pts[2], pts[3], pts[0]], ctx):
+    if intersectRectTri(rrect, [pts[2], pts[3], pts[0]], ctx):
         return True
 
     return False
-
 
 class Rectangle(object):
     def __init__(self, x, y, w, h):
@@ -165,6 +168,84 @@ class Rectangle(object):
     #     w = x2 - x1 + 1
     #     h = y2 - y1 + 1
     #     return cls(x1, y1, w, h)
+
+class PixelRetangle(np.ndarray):
+    @classmethod
+    def fromCoords(cls, x1, y1, x2, y2):
+        # Construct a standard numpy array:
+        arrayvec = np.array([x1, y1, x2, y2])
+        # Perform a numpy 'view cast' to the target type 'cls':
+        trans = arrayvec.view(cls)
+        return trans
+    @classmethod
+    def fromCorners(cls, tl, br):
+        assert(len(tl) == 2)
+        assert(len(br) == 2)
+        # Construct a standard numpy array:
+        arrayvec = np.array([tl[0], tl[1], br[0], br[1]])
+        # Perform a numpy 'view cast' to the target type 'cls':
+        trans = arrayvec.view(cls)
+        return trans
+    @property
+    def x1(self):
+        assert(self.shape[0] == 4)
+        return self[0]
+    @x1.setter
+    def x1(self, value):
+        assert(self.shape[0] == 4)
+        self[0] = value
+    @property
+    def y1(self):
+        assert(self.shape[0] == 4)
+        return self[1]
+    @y1.setter
+    def y1(self, value):
+        assert(self.shape[0] == 4)
+        self[1] = value
+    @property
+    def x2(self):
+        assert(self.shape[0] == 4)
+        return self[2]
+    @x2.setter
+    def x2(self, value):
+        assert(self.shape[0] == 4)
+        self[2] = value
+    @property
+    def y2(self):
+        assert(self.shape[0] == 4)
+        return self[3]
+    @y2.setter
+    def y2(self, value):
+        assert(self.shape[0] == 4)
+        self[3] = value
+
+    @property
+    def tl(self):
+        assert(self.shape[0] == 4)
+        return self[0:2]
+    @tl.setter
+    def tl(self, value):
+        assert(self.shape[0] == 4)
+        assert(len(value) == 2)
+        self[0:2] = value
+    @property
+    def br(self):
+        assert(self.shape[0] == 4)
+        return self[2:4]
+    @br.setter
+    def br(self, value):
+        assert(self.shape[0] == 4)
+        assert(len(value) == 2)
+        self[2:4] = value
+
+    # If this rectangle lay within a frame of the given shape, and that frame
+    # were to be rotated by 180 degrees along with the rectangle, return the
+    # rectangle that would result.
+    def flipped(self, dimensions):
+        dims = np.array(dimensions)
+        tl = dims - self.tl
+        br = dims - self.br
+        return PixelRetangle.fromCorners(tl, br)
 
 # extendBoundingBox :: Rectangle -> Float -> Rectangle
 def extendBoundingBox(rect, new_aspect):

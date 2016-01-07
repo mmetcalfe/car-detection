@@ -13,6 +13,7 @@ import sys
 from pprint import pprint
 
 import cardetection.carutils.geometry as gm
+from cardetection.carutils.images import listImagesInDirectory
 
 class TooFewImagesError(Exception):
     def __init__(self, presentCounts, requiredCounts):
@@ -65,11 +66,6 @@ def requiredImageCounts(trial_yaml):
         return (numPos, numNeg, numBak)
     else:
         raise ValueError('Invalid dataset specifications in yaml file.')
-
-def listImagesInDirectory(image_dir):
-    image_list = glob.glob("{}/*.jpg".format(image_dir))
-    image_list += glob.glob("{}/*.png".format(image_dir))
-    return image_list
 
 # sampleTrainingImages :: String -> [String] -> Int -> [String]
 def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, bbinfo_dir=None):
@@ -418,9 +414,10 @@ def runClassifier(classifier_yaml, output_dir):
                 print 'resize:', img_path, img.shape
                 img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
 
-            # Check whether the image is upside-down:
-            if checkImageOrientation(img_path):
-                img = cv2.flip(img, -1)
+            # # Check whether the image is upside-down:
+            # if checkImageOrientation(img_path):
+            #     print 'Flipped!'
+            #     img = cv2.flip(img, -1)
 
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -429,7 +426,7 @@ def runClassifier(classifier_yaml, output_dir):
                 image=gray,
                 # scaleFactor=1.05,
                 scaleFactor=1.01,
-                minNeighbors=3,
+                minNeighbors=4,
                 minSize=minSize,
             )
 
