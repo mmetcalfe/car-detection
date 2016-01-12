@@ -31,17 +31,30 @@ def loadYamlFile(fname):
     file.close()
     return data
 
+# loadInfoFile :: String -> Map String String
+def loadInfoFile(bbinfo_file):
+    bbinfo_cache = {}
+    with open(bbinfo_file, 'r') as dat_file:
+        for line in dat_file.readlines():
+            parts = line.strip().partition(' ')
+            image_path = parts[0].split('/')[-1]
+            details = parts[2]
+            bbinfo_cache[image_path] = details
+    return bbinfo_cache
+
 # loadGlobalInfo :: String -> Map String String
 def loadGlobalInfo(bbinfo_folder):
     global_info = {}
     cache_files = glob.glob("{}/{}__*.dat".format(bbinfo_folder, '*'))
     for cache_file_name in cache_files:
-        with open(cache_file_name, 'r') as dat_file:
-            for line in dat_file.readlines():
-                parts = line.strip().partition(' ')
-                image_path = parts[0].split('/')[-1]
-                details = parts[2]
-                global_info[image_path] = details
+        info_cache = loadInfoFile(cache_file_name)
+        global_info.update(info_cache)
+        # with open(cache_file_name, 'r') as dat_file:
+        #     for line in dat_file.readlines():
+        #         parts = line.strip().partition(' ')
+        #         image_path = parts[0].split('/')[-1]
+        #         details = parts[2]
+        #         global_info[image_path] = details
     return global_info
 
 # requiredImageCounts :: Tree String -> (Int, Int, Int)
@@ -89,6 +102,8 @@ def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, 
         bbox_filter = lambda img_path: os.path.split(img_path)[1] in global_info
         filtered_image_list = filter(bbox_filter, filtered_image_list)
 
+    print len(filtered_image_list)
+
     # Truncate file lists to sample the correct number of images:
     image_sample = filtered_image_list
     if not sample_size is None:
@@ -117,7 +132,7 @@ def rectanglesFromCacheString(rects_str):
     if int(num) > 0:
         objs = list(chunks(obj_ints, 4))
 
-    rects = map(gm.Rectangle.fromList, objs)
+    rects = map(gm.PixelRectangle.from_opencv_bbox, objs)
 
     assert len(rects) == int(num)
     return rects
@@ -204,7 +219,7 @@ def preprocessTrial(classifier_yaml, output_dir):
     there_are_too_few_images = False
     presentCounts = (len(pos_image_files), len(neg_image_files), len(bak_image_files))
     print presentCounts
-    if any(map(lambda (p, r): p < r, zip(presentCounts, requiredCounts))):
+    if len(pos_image_files) <= 0 or any(map(lambda (p, r): p < r, zip(presentCounts, requiredCounts))):
         # raise ValueError('Not enough images!')
         raise TooFewImagesError(presentCounts, requiredCounts)
 
@@ -359,9 +374,9 @@ def trainClassifier(classifier_yaml, output_dir):
 # runClassifier :: Tree String -> String -> IO ()
 import cv2
 import numpy as np
-import exifread
 
 def checkImageOrientation(img_path):
+    import exifread
     with open(img_path, 'rb') as fh:
         exif_tags = exifread.process_file(fh)
         if not 'Image Orientation' in exif_tags:
@@ -448,11 +463,7 @@ def runClassifier(classifier_yaml, output_dir):
                 cv2.destroyAllWindows()
 
 def cvDrawRectangle(img, rect, col, lw):
-    x = rect.x
-    y = rect.y
-    w = rect.w
-    h = rect.h
-    cv2.rectangle(img,(x,y),(x+w-1,y+h-1),col, lw)
+    cv2.rectangle(img,tuple(rect.tl),tuple(rect.br),col, lw)
 
 def viewPositiveSamples(classifier_yaml, output_dir):
     bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']

@@ -169,7 +169,7 @@ class Rectangle(object):
     #     h = y2 - y1 + 1
     #     return cls(x1, y1, w, h)
 
-class PixelRetangle(np.ndarray):
+class PixelRectangle(np.ndarray):
     @classmethod
     def fromCoords(cls, x1, y1, x2, y2):
         # Construct a standard numpy array:
@@ -178,18 +178,83 @@ class PixelRetangle(np.ndarray):
         trans = arrayvec.view(cls)
         return trans
     @classmethod
-    def fromCorners(cls, tl, br):
-        assert(len(tl) == 2)
-        assert(len(br) == 2)
+    def fromCorners(cls, c1, c2):
+        assert(len(c1) == 2)
+        assert(len(c2) == 2)
+
+        # Find the top-left and bottom-right corner:
+        tl = np.minimum(c1, c2)
+        br = np.maximum(c1, c2)
+
         # Construct a standard numpy array:
         arrayvec = np.array([tl[0], tl[1], br[0], br[1]])
         # Perform a numpy 'view cast' to the target type 'cls':
         trans = arrayvec.view(cls)
         return trans
+
+    @classmethod
+    def from_opencv_bbox(cls, bbox):
+        assert(len(bbox) == 4)
+        # Construct a standard numpy array:
+        arrayvec = np.array([0, 0, 0, 0])
+        # Perform a numpy 'view cast' to the target type 'cls':
+        trans = arrayvec.view(cls)
+        trans.opencv_bbox = bbox
+        return trans
+
+    @classmethod
+    def random(cls, img_dims):
+        assert(len(img_dims) == 2)
+        w, h = img_dims
+        x1, x2 = np.random.randint(0, w, 2)
+        y1, y2 = np.random.randint(0, h, 2)
+        return cls.fromCorners([x1, y1], [x2, y2])
+
+    @classmethod
+    def random_with_aspect(cls, min_size, img_dims):
+        assert(len(img_dims) == 2 and len(min_size) == 2)
+        assert(min_size[0] <= img_dims[0] and min_size[1] <= img_dims[1])
+
+        min_size = np.array(min_size)
+
+        w, h = img_dims
+        min_w, min_h = min_size
+
+        aspect = min_w / float(min_h)
+
+        max_w = min(w, int(h*aspect))
+        max_h = min(h, int(max_w/aspect))
+        assert(abs(aspect - max_w/float(max_h)) < 0.1)
+
+        # Prefer smaller rectangles:
+        # fn = lambda x: 1.0/x
+        # fn_inv = lambda x: 1.0/x
+        # fn_reg_w = np.random.uniform(fn(min_w), fn(max_w), 1)
+        # reg_w = max(1, int(fn_inv(fn_reg_w)))
+
+        # Prefer smaller rectangles:
+        a = 0.5
+        b = 2
+        r = max_w - min_w
+        reg_w_frac = np.random.beta(a, b, 1)
+        reg_w = max(1, int(min_w + r*reg_w_frac))
+
+        # Uniform sampling:
+        # reg_w = np.random.random_integers(min_w, max_w, 1)
+
+        reg_h = int(reg_w / aspect)
+        assert(abs(aspect - reg_w/float(reg_h)) < 0.2)
+
+        x1 = np.random.random_integers(0, w - reg_w, 1)
+        y1 = np.random.random_integers(0, h - reg_h, 1)
+        x2 = x1 + reg_w - 1
+        y2 = y1 + reg_h - 1
+        return cls.fromCorners([x1, y1], [x2, y2])
+
     @property
     def x1(self):
         assert(self.shape[0] == 4)
-        return self[0]
+        return int(self[0])
     @x1.setter
     def x1(self, value):
         assert(self.shape[0] == 4)
@@ -197,7 +262,7 @@ class PixelRetangle(np.ndarray):
     @property
     def y1(self):
         assert(self.shape[0] == 4)
-        return self[1]
+        return int(self[1])
     @y1.setter
     def y1(self, value):
         assert(self.shape[0] == 4)
@@ -205,7 +270,7 @@ class PixelRetangle(np.ndarray):
     @property
     def x2(self):
         assert(self.shape[0] == 4)
-        return self[2]
+        return int(self[2])
     @x2.setter
     def x2(self, value):
         assert(self.shape[0] == 4)
@@ -213,7 +278,7 @@ class PixelRetangle(np.ndarray):
     @property
     def y2(self):
         assert(self.shape[0] == 4)
-        return self[3]
+        return int(self[3])
     @y2.setter
     def y2(self, value):
         assert(self.shape[0] == 4)
@@ -238,6 +303,19 @@ class PixelRetangle(np.ndarray):
         assert(len(value) == 2)
         self[2:4] = value
 
+    @property
+    def w(self):
+        assert(self.shape[0] == 4)
+        return int(self.x2 - self.x1 + 1)
+    @property
+    def h(self):
+        assert(self.shape[0] == 4)
+        return int(self.y2 - self.y1 + 1)
+    @property
+    def aspect(self):
+        assert(self.shape[0] == 4)
+        return self.w / float(self.h)
+
     # If this rectangle lay within a frame of the given shape, and that frame
     # were to be rotated by 180 degrees along with the rectangle, return the
     # rectangle that would result.
@@ -245,7 +323,55 @@ class PixelRetangle(np.ndarray):
         dims = np.array(dimensions)
         tl = dims - self.tl
         br = dims - self.br
-        return PixelRetangle.fromCorners(tl, br)
+        return PixelRectangle.fromCorners(tl, br)
+
+    # Return the rectangle that would result if an image containing this
+    # rectangle was scaled (along with the rectangle) from img_dims to have the
+    # dimensions new_dims.
+    def scaleImage(self, img_dims, new_dims):
+        xs = new_dims[0] / float(img_dims[0])
+        ys = new_dims[1] / float(img_dims[1])
+
+        x1 = int(self.x1 * xs)
+        x2 = int(self.x2 * xs)
+        y1 = int(self.y1 * ys)
+        y2 = int(self.y2 * ys)
+
+        tl = np.array([x1, y1])
+        br = np.array([x2, y2])
+        tl = np.minimum(np.maximum(tl, [0, 0]), new_dims - np.array([1, 1]))
+        br = np.minimum(np.maximum(br, [0, 0]), new_dims - np.array([1, 1]))
+
+        return PixelRectangle.fromCorners(tl, br)
+
+    @property
+    def opencv_bbox(self):
+        # Note: Must add 1 to the difference, since the ranges are inclusive.
+        w = self.x2 - self.x1 + 1
+        h = self.y2 - self.y1 + 1
+        lst = [self.x1, self.y1, w, h]
+        return map(int, lst)
+
+    @opencv_bbox.setter
+    def opencv_bbox(self, xywh):
+        x, y, w, h = xywh
+        self.x1 = x
+        self.y1 = y
+        # Note the subtraction, since (x,y) is the top-left grid cell (pixel),
+        # axis-aligned width is specified in full grid cells:
+        self.x2 = x + w - 1
+        self.y2 = y + h - 1
+
+    def contains(self, pt):
+        x, y = pt
+
+        if x < self.x1 or self.x2 < x:
+            return False;
+
+        if y < self.y1 or self.y2 < y:
+            return False;
+
+        return True
 
 # extendBoundingBox :: Rectangle -> Float -> Rectangle
 def extendBoundingBox(rect, new_aspect):

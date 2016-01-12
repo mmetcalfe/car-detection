@@ -1,7 +1,7 @@
 import cyglfw3 as glfw
 import numpy as np
 
-from geometry import sphericalToCartesian, cartesianToSpherical
+from cardetection.carutils.geometry import sphericalToCartesian, cartesianToSpherical
 
 from camera import Camera
 

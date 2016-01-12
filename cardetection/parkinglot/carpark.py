@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from geometry import *
+from ..carutils.geometry import *
 
 class Vehicle(object):
     def __init__(self, position, rotation, boxSize):

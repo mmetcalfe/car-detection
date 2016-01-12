@@ -90,12 +90,12 @@ if __name__ == "__main__":
 
 	trial_files = glob.glob("{}/*.yaml".format(args.output_dir))
 
-	# print '===== VIEW SAMPLES ====='
-	# print 'Note: Comment out this section if you actually want to train anything.'
-	# for trial_yaml in trial_files:
-	# 	classifier_yaml = training.loadYamlFile(trial_yaml)
-	# 	output_dir = trial_yaml.split('.yaml')[0]
-	# 	training.viewPositiveSamples(classifier_yaml, output_dir)
+	print '===== VIEW SAMPLES ====='
+	print 'Note: Comment out this section if you actually want to train anything.'
+	for trial_yaml in trial_files:
+		classifier_yaml = training.loadYamlFile(trial_yaml)
+		output_dir = trial_yaml.split('.yaml')[0]
+		training.viewPositiveSamples(classifier_yaml, output_dir)
 
 	print '===== PREPROCESS TRIALS ====='
 

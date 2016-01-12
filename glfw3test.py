@@ -15,13 +15,13 @@ import cyglfw3 as glfw
 from OpenGL.GL import *
 # from math import *
 
-from parkinglot.cbwindow import CbWindow
+from cardetection.parkinglot.cbwindow import CbWindow
 
 # from render import renderScene, renderTest
-from parkinglot.openglscene import Scene
-from parkinglot.carparkrender import ParkingLotRender
-from parkinglot.carpark import *
-from parkinglot.playercamera import PlayerCamera
+from cardetection.parkinglot.openglscene import Scene
+from cardetection.parkinglot.carparkrender import ParkingLotRender
+from cardetection.parkinglot.carpark import *
+from cardetection.parkinglot.playercamera import PlayerCamera
 
 def processCameraSelectInput(window, parkingLot):
     if glfw.GetKey(window.window, glfw.KEY_GRAVE_ACCENT) == glfw.PRESS:

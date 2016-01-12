@@ -15,27 +15,10 @@ import random
 import math
 import cv2
 
-import detection.train_classifier as training
+import cardetection.detection.cascadetraining as training
+from cardetection.carutils.plotting import saveHistogram
 from parkinglot import drawing2d
 from detection import kitti
-
-
-import matplotlib.pyplot as plt
-import numpy as np
-def saveHistogram(fname, x, bins=50):
-    def to_percent(y, pos):
-        s = str(100*y)
-        if plt.rcParams['text.usetex'] is True:
-            return s + r'$\%$'
-        else:
-            return s + '%'
-
-    # plt.hist(x, bins=bins, normed=True, cumulative=True)
-    plt.hist(x, bins=bins)
-    # formatter = plt.FuncFormatter(to_percent)
-    # plt.gca().yaxis.set_major_formatter(formatter)
-
-    plt.savefig(fname)
 
 if __name__ == "__main__":
     # random.seed(123454321) # Use deterministic samples.
