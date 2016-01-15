@@ -23,6 +23,13 @@ class ImageRegion(object):
         sample = self.load_cropped_sample()
         return resize_sample(sample, (dimensions[1], dimensions[0]))
 
+    @property
+    def as_dict(self):
+        info = {}
+        info['rect'] = self.rect.opencv_bbox
+        info['fname'] = self.fname
+        return info
+
 def listImagesInDirectory(image_dir):
     image_list = glob.glob("{}/*.jpg".format(image_dir))
     image_list += glob.glob("{}/*.png".format(image_dir))

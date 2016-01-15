@@ -80,8 +80,9 @@ training:
     svm:
         # Number of positive and negative images to train with.
         # pos_num: '19479' # KITTI dataset
-        pos_num: '10000'
-        neg_num: '50000'
+
+        pos_num: '19479'
+        neg_num: '100000'
 
         # Number of rounds of hard-negative mining to perform
         mining_rounds: '2'

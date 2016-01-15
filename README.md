@@ -34,6 +34,12 @@ Trains and evaluates a set of classifiers based on the supplied `template.yaml` 
 
 ## To train a HOG + Linear SVM classifier:
 
+Start the MongoDB driver:
+
+    $ mongod --config /usr/local/etc/mongod.conf
+
+In another terminal, run:
+
     $ python -m cardetection.detection.trainhog
 
 Trains a single classifier based on the supplied `classifier.yaml` file.

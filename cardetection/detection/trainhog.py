@@ -1,6 +1,7 @@
 import os.path
 import random
 import argparse
+import yaml
 import numpy as np
 import cv2
 import PIL.Image
@@ -73,7 +74,7 @@ def get_svm_detector(svm_file_path):
 
     return svm_detector
 
-def get_hog_object():
+def get_hog_object(window_dims):
     blockSize = (8,8)
     # blockSize = (16,16)
     blockStride = (8,8)
@@ -81,7 +82,7 @@ def get_hog_object():
     nbins = 9
     derivAperture = 1
     winSigma = 4.
-    histogramNormType = 0
+    histogramNormType = 0 # HOGDescriptor::L2Hys
     L2HysThreshold = 2.0000000000000001e-01
     gammaCorrection = 0
     nlevels = 64
@@ -89,8 +90,8 @@ def get_hog_object():
                             histogramNormType,L2HysThreshold,gammaCorrection,nlevels)
     return hog
 
-def compute_hog_descriptors(image_regions, window_dims):
-    hog = get_hog_object()
+def compute_hog_descriptors(hog, image_regions, window_dims):
+    # hog = get_hog_object(window_dims)
 
     progressbar = ProgressBar('Computing descriptors', max=len(image_regions))
     descriptors = []
@@ -112,7 +113,7 @@ def compute_hog_descriptors(image_regions, window_dims):
 def train_svm(svm_save_path, descriptors, labels):
     # train_data = convert_to_ml(descriptors)
     train_data = np.array(descriptors)
-    responses = np.array(labels)
+    responses = np.array(labels, dtype=np.int32)
 
     print "Start training..."
     svm = cv2.ml.SVM_create()
@@ -135,7 +136,7 @@ def train_svm(svm_save_path, descriptors, labels):
 # def test_classifier(svm_file_path, window_dims):
 #     #  Set the trained svm to my_hog
 #     hog_detector = get_svm_detector(svm_file_path)
-#     hog = get_hog_object()
+#     hog = get_hog_object(window_dims)
 #     hog.setSVMDetector(hog_detector)
 #
 #     locations = hog.detectMultiScale(img)
@@ -144,7 +145,7 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
     print 'Loading detector...'
     #  Set the trained svm to my_hog
     hog_detector = get_svm_detector(svm_file_path)
-    hog = get_hog_object()
+    hog = get_hog_object(window_dims)
     hog.setSVMDetector(hog_detector)
     print '...[done]'
 
@@ -311,6 +312,89 @@ def test_random_with_aspect():
     saveHistogram('region-aspects.pdf', aspects, bins=20)
     print 'Saved!'
 
+def get_hog_info_dict(hog):
+    info = {}
+    info['winSize'] = hog.winSize
+    info['blockSize'] = hog.blockSize
+    info['blockStride'] = hog.blockStride
+    info['cellSize'] = hog.cellSize
+    info['nbins'] = hog.nbins
+    info['derivAperture'] = hog.derivAperture
+    info['winSigma'] = hog.winSigma
+    info['histogramNormType'] = hog.histogramNormType
+    info['L2HysThreshold'] = hog.L2HysThreshold
+    info['gammaCorrection'] = hog.gammaCorrection
+    info['nlevels'] = hog.nlevels
+    return info
+
+def create_hog_from_info_dict(info):
+    hog = cv2.HOGDescriptor(
+        info['winSize'],
+        info['blockSize'],
+        info['blockStride'],
+        info['cellSize'],
+        info['nbins'],
+        info['derivAperture'],
+        info['winSigma'],
+        info['histogramNormType'],
+        info['L2HysThreshold'],
+        info['gammaCorrection'],
+        info['nlevels'])
+    return hog
+
+def save_region_descriptors(hog, pos_regions, pos_descriptors, base_fname):
+    # Generate an appropriate file name:
+    output_dir = 'output'
+    descr_name = base_fname
+    fname_no_ext = '{}/{}'.format(output_dir,descr_name)
+    print 'Saving descriptors to \'{}.xxx\'...'.format(fname_no_ext)
+
+    assert(len(pos_descriptors[0].shape) == 2)
+    assert(pos_descriptors[0].shape[1] == 1)
+
+    pairs = zip(pos_regions, pos_descriptors)
+    region_descriptors = [{'region': r.as_dict, 'descriptor': np.squeeze(d).tolist()} for r, d in pairs]
+
+    data = {}
+    data['hog_descriptor_info'] = get_hog_info_dict(hog)
+    data['region_descriptor_list'] = region_descriptors
+
+    # # Save as YAML:
+    # with open('{}.yaml'.format(fname_no_ext), 'w') as stream:
+    #     yaml.dump(data, stream)
+
+    # Save as pickle (smaller + faster):
+    with open('{}.pickle'.format(fname_no_ext), 'wb') as fh:
+        import pickle
+        pickle.dump(data, fh, pickle.HIGHEST_PROTOCOL)
+
+def load_region_descriptors(trial_file):
+    print 'Loading descriptors from \'{}\'...'.format(trial_file)
+    fname, ext = os.path.splitext(trial_file)
+
+    data = None
+    if ext == '.pickle':
+        with open(trial_file, 'rb') as f:
+            import pickle
+            data = pickle.load(f)
+    elif ext == '.yaml':
+        data = training.loadYamlFile(trial_file)
+    else:
+        raise ValueError('The file \'{}\' has an unrecognised extension: \'{}\'.'.format(trial_file, ext))
+
+    hog = create_hog_from_info_dict(data['hog_descriptor_info'])
+    regions = []
+    descriptors = []
+    for entry in data['region_descriptor_list']:
+        descriptors.append(np.array(entry['descriptor'], dtype=np.float32))
+
+        rect = gm.PixelRectangle.from_opencv_bbox(entry['region']['rect'])
+        fname = entry['region']['fname']
+        region = utils.ImageRegion(rect, fname)
+        regions.append(region)
+
+    return hog, regions, descriptors
+
 if __name__ == '__main__':
     random.seed(123454321) # Use deterministic samples.
 
@@ -323,32 +407,52 @@ if __name__ == '__main__':
     classifier_yaml = training.loadYamlFile(args.classifier_yaml)
     output_dir = args.classifier_yaml.split('.yaml')[0]
 
-    # # (144, 96) # aspect: 1.5
-    # # (128, 96) # aspect: 1.3
-    window_dims = (96, 64) # aspect: 1.5
+    window_dims = (144, 96) # aspect: 1.5
+    # window_dims = (128, 96) # aspect: 1.3
+    # window_dims = (96, 64) # aspect: 1.5
 
+    svm_save_path = 'car_detector.yaml'
     pos_img_dir = classifier_yaml['dataset']['directory']['positive']
     pos_num = int(classifier_yaml['training']['svm']['pos_num'])
     bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
-    svm_save_path = 'car_detector.yaml'
-    # pos_regions = choose_training_samples(pos_img_dir, pos_num, bbinfo_dir=bbinfo_dir)
-    #
-    # bak_img_dir = classifier_yaml['dataset']['directory']['background']
-    # neg_num = int(classifier_yaml['training']['svm']['neg_num'])
-    # neg_regions = generate_negative_regions(bak_img_dir, neg_num, window_dims)
+    bak_img_dir = classifier_yaml['dataset']['directory']['background']
+    neg_num = int(classifier_yaml['training']['svm']['neg_num'])
 
-    # # Compute descriptors for all samples:
-    # pos_descriptors = compute_hog_descriptors(pos_regions, window_dims)
-    # neg_descriptors = compute_hog_descriptors(neg_regions, window_dims)
-    #
-    # # Save descriptors to file:
-    #
-    # # Create lists of samples and labels:
-    # descriptors = pos_descriptors + neg_descriptors
-    # labels = [1]*len(pos_descriptors) + [-1]*len(neg_descriptors)
-    #
-    # # Train the classifier:
-    # train_svm(svm_save_path, descriptors, labels)
+    hog, pos_regions, pos_descriptors = None, None, None
+    hog, neg_regions, neg_descriptors = None, None, None
+
+    pos_descriptor_file = 'output/pos_descriptors.pickle'
+    neg_descriptor_file = 'output/neg_descriptors.pickle'
+    if not (os.path.isfile(pos_descriptor_file) and os.path.isfile(neg_descriptor_file)):
+        # Create the hog object with which to compute the descriptors:
+        hog = get_hog_object(window_dims)
+
+        # Preprocess samples:
+        #   - generate/select sample regions
+        #   - compute and descriptors for all samples
+        #   - save the regions and descriptors to a file
+
+        if not os.path.isfile(pos_descriptor_file):
+            pos_regions = choose_training_samples(pos_img_dir, pos_num, bbinfo_dir=bbinfo_dir)
+            pos_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims)
+            save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
+
+        if not os.path.isfile(neg_descriptor_file):
+            neg_regions = generate_negative_regions(bak_img_dir, neg_num, window_dims)
+            neg_descriptors = compute_hog_descriptors(hog, neg_regions, window_dims)
+            save_region_descriptors(hog, neg_regions, neg_descriptors, 'neg_descriptors')
+    else:
+        # Load all descriptors and the hog object used to generate them:
+        hog, pos_regions, pos_descriptors = load_region_descriptors(pos_descriptor_file)
+        hog, neg_regions, neg_descriptors = load_region_descriptors(neg_descriptor_file)
+
+    if not os.path.isfile(svm_save_path):
+        # Create lists of samples and labels:
+        descriptors = pos_descriptors + neg_descriptors
+        labels = [1]*len(pos_descriptors) + [-1]*len(neg_descriptors)
+
+        # Train the classifier:
+        train_svm(svm_save_path, descriptors, labels)
 
     # Test the classifier:
     test_classifier(classifier_yaml, svm_save_path, window_dims)
