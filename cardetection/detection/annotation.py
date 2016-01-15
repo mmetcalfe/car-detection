@@ -119,6 +119,21 @@ class OpenCVAnnotator(object):
         while True:
             self.update_display()
             key = cv2.waitKey(1) & 0xFF
+
+            # Use arrow keys, or < and > to move between images.
+            right_pressed = (key == 28 or key == 46 or key == 3)
+            left_pressed = (key == 29 or key == 44 or key == 2)
+
+            # Use delete or backspace to enter delete mode.
+            delete_pressed = (key == 127 or key == 40 or key == 8)
+
+            # Use up arrow or 'f' to flip an image.
+            up_pressed = (key == 30 or key == 0)
+            flip_pressed = up_pressed or key == ord('f')
+
+            # Space pressed:
+            space_pressed = key == 32
+
             if key == ord('q'):
                 print 'Quitting'
                 break
@@ -145,7 +160,7 @@ class OpenCVAnnotator(object):
                     print 'Current image has not been rotated.'
 
             # Add a new bounding box:
-            elif key == ord('n'):
+            elif key == ord('n') or space_pressed:
                 print 'New bounding box'
                 self.editing = True
 
@@ -155,7 +170,7 @@ class OpenCVAnnotator(object):
                 self.editing = False
 
             # Accept bounding box:
-            elif key == 13: # Enter / CR key
+            elif key == 13 or space_pressed: # Enter / CR key
                 if not self.rect_tl is None and not self.rect_br is None:
                     rect = gm.PixelRectangle.fromCorners(self.rect_tl, self.rect_br)
                     self.addRectangleToImage(self.current_path, rect)
@@ -172,8 +187,8 @@ class OpenCVAnnotator(object):
             # Non-standard codes that work for me:
             #   r: 3, l: 2, u: 0, d: 1
             # Move to next/previous image:
-            elif (key == 28 or key == 3) or (key == 29 or key == 2):
-                self.img_index += 1 if (key == 28 or key == 3) else -1
+            elif right_pressed or left_pressed:
+                self.img_index += 1 if right_pressed else -1
                 self.img_index %= len(img_paths)
                 self.current_path = img_paths[self.img_index]
                 self.current_img = cv2.imread(self.current_path)
@@ -181,7 +196,7 @@ class OpenCVAnnotator(object):
                 self.flipped = False
                 print 'Moved to image: {}, {}'.format(self.img_index, self.current_path)
 
-            elif (key == 30 or key == 0): # up arrow
+            elif flip_pressed: # up arrow
                 self.current_img = cv2.flip(self.current_img, -1)
                 self.flipped = not self.flipped
 
@@ -195,7 +210,7 @@ class OpenCVAnnotator(object):
 
             # ASCII DEL: 127 (the backspace key on OSX)
             # What OpenCV makes of my delete key: 40
-            elif (key == 127 or key == 40):
+            elif delete_pressed:
                 self.deleting = True
                 print 'Click a bounding box to DELETE it.'
 
