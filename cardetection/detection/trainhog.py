@@ -9,6 +9,7 @@ import cascadetraining as training
 import cardetection.carutils.images as utils
 import cardetection.carutils.geometry as gm
 from progress.bar import Bar as ProgressBar
+from cardetection.carutils.datastore import DataStore
 
 def get_svm_detector(svm_file_path):
     # # TODO: Use the SVM_ml.load method these OpenCV issues are fixed:
@@ -90,11 +91,11 @@ def get_hog_object(window_dims):
                             histogramNormType,L2HysThreshold,gammaCorrection,nlevels)
     return hog
 
-def compute_hog_descriptors(hog, image_regions, window_dims):
+def compute_hog_descriptors(hog, image_regions, window_dims, label):
     # hog = get_hog_object(window_dims)
 
     progressbar = ProgressBar('Computing descriptors', max=len(image_regions))
-    descriptors = []
+    reg_descriptors = []
     for reg in image_regions: # TODO: Should only load each image once.
         progressbar.next()
         img = reg.load_cropped_resized_sample(window_dims)
@@ -106,9 +107,10 @@ def compute_hog_descriptors(hog, image_regions, window_dims):
         locations = [] # (10, 10)# ((10,20),)
         hist = hog.compute(grey,winStride,padding,locations)
 
-        descriptors.append(hist)
+        reg_desc = utils.RegionDescriptor(reg, hist, label)
+        reg_descriptors.append(reg_desc)
     progressbar.finish()
-    return descriptors
+    return reg_descriptors
 
 def train_svm(svm_save_path, descriptors, labels):
     # train_data = convert_to_ml(descriptors)
@@ -312,35 +314,6 @@ def test_random_with_aspect():
     saveHistogram('region-aspects.pdf', aspects, bins=20)
     print 'Saved!'
 
-def get_hog_info_dict(hog):
-    info = {}
-    info['winSize'] = hog.winSize
-    info['blockSize'] = hog.blockSize
-    info['blockStride'] = hog.blockStride
-    info['cellSize'] = hog.cellSize
-    info['nbins'] = hog.nbins
-    info['derivAperture'] = hog.derivAperture
-    info['winSigma'] = hog.winSigma
-    info['histogramNormType'] = hog.histogramNormType
-    info['L2HysThreshold'] = hog.L2HysThreshold
-    info['gammaCorrection'] = hog.gammaCorrection
-    info['nlevels'] = hog.nlevels
-    return info
-
-def create_hog_from_info_dict(info):
-    hog = cv2.HOGDescriptor(
-        info['winSize'],
-        info['blockSize'],
-        info['blockStride'],
-        info['cellSize'],
-        info['nbins'],
-        info['derivAperture'],
-        info['winSigma'],
-        info['histogramNormType'],
-        info['L2HysThreshold'],
-        info['gammaCorrection'],
-        info['nlevels'])
-    return hog
 
 def save_region_descriptors(hog, pos_regions, pos_descriptors, base_fname):
     # Generate an appropriate file name:
@@ -356,7 +329,7 @@ def save_region_descriptors(hog, pos_regions, pos_descriptors, base_fname):
     region_descriptors = [{'region': r.as_dict, 'descriptor': np.squeeze(d).tolist()} for r, d in pairs]
 
     data = {}
-    data['hog_descriptor_info'] = get_hog_info_dict(hog)
+    data['hog_descriptor_info'] = utils.get_hog_info_dict(hog)
     data['region_descriptor_list'] = region_descriptors
 
     # # Save as YAML:
@@ -382,7 +355,7 @@ def load_region_descriptors(trial_file):
     else:
         raise ValueError('The file \'{}\' has an unrecognised extension: \'{}\'.'.format(trial_file, ext))
 
-    hog = create_hog_from_info_dict(data['hog_descriptor_info'])
+    hog = utils.create_hog_from_info_dict(data['hog_descriptor_info'])
     regions = []
     descriptors = []
     for entry in data['region_descriptor_list']:
@@ -396,7 +369,7 @@ def load_region_descriptors(trial_file):
     return hog, regions, descriptors
 
 if __name__ == '__main__':
-    random.seed(123454321) # Use deterministic samples.
+    # random.seed(123454321) # Use deterministic samples.
 
     # Parse arguments:
     parser = argparse.ArgumentParser(description='Train a HOG + Linear SVM classifier.')
@@ -432,24 +405,32 @@ if __name__ == '__main__':
         #   - compute and descriptors for all samples
         #   - save the regions and descriptors to a file
 
+        store = DataStore()
+
         if not os.path.isfile(pos_descriptor_file):
             pos_regions = choose_training_samples(pos_img_dir, pos_num, bbinfo_dir=bbinfo_dir)
-            pos_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims)
-            save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
+            pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
+            # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
+            store.save_region_descriptors(pos_reg_descriptors, hog)
 
         if not os.path.isfile(neg_descriptor_file):
             neg_regions = generate_negative_regions(bak_img_dir, neg_num, window_dims)
-            neg_descriptors = compute_hog_descriptors(hog, neg_regions, window_dims)
-            save_region_descriptors(hog, neg_regions, neg_descriptors, 'neg_descriptors')
+            neg_reg_descriptors = compute_hog_descriptors(hog, neg_regions, window_dims, -1)
+            # save_region_descriptors(hog, neg_regions, neg_descriptors, 'neg_descriptors')
+            store.save_region_descriptors(neg_reg_descriptors, hog)
     else:
         # Load all descriptors and the hog object used to generate them:
-        hog, pos_regions, pos_descriptors = load_region_descriptors(pos_descriptor_file)
-        hog, neg_regions, neg_descriptors = load_region_descriptors(neg_descriptor_file)
+        store = DataStore()
+        hog, reg_descriptors = store.load_region_descriptors('hog_Llht0,2_n64_gcFalse_hnt0_bs8x8_cs8x8_ws4,0_da1')
+    #     hog, pos_regions, pos_descriptors = load_region_descriptors(pos_descriptor_file)
+    #     hog, neg_regions, neg_descriptors = load_region_descriptors(neg_descriptor_file)
+
+    sys.exit(1)
 
     if not os.path.isfile(svm_save_path):
         # Create lists of samples and labels:
-        descriptors = pos_descriptors + neg_descriptors
-        labels = [1]*len(pos_descriptors) + [-1]*len(neg_descriptors)
+        descriptors = [rd.descriptor for rd in reg_descriptors]
+        labels = [rd.label for rd in reg_descriptors]
 
         # Train the classifier:
         train_svm(svm_save_path, descriptors, labels)
