@@ -5,13 +5,18 @@
 For several modules:
 
   * numpy
-  * OpenCV 3.1.0
+  * OpenCV 3.1.0 (build with "extra" contributed modules)
   * pyaml
   * pillow
   * matplotlib
 
+For trainhog:
+
+    * MongoDB (https://docs.mongodb.org/manual/administration/install-community/)
+    * pymongo
+
 Useful for correcting image orientations:
-(see cascadetraining.checkImageOrientation)
+(see cardetection.detection.cascadetraining.checkImageOrientation())
 
   * exifread
 

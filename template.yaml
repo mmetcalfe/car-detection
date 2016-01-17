@@ -16,8 +16,6 @@
 # maxImageCountDiff: [644, 2532, 2132] # pos, neg, bak
 # maxImageCountDiff: [0, 1032, 1132] # pos, neg, bak
 
-# TODO: Consider adding window size as a parameter.
-
 # Acceptable limits:
 #  - number: 6000
 #  - posFrac: 0.66
@@ -78,14 +76,25 @@ dataset:
 training:
     # Parameters for training a basic HOG + Linear SVM classifier:
     svm:
+        # Window size for HOG + Linear SVM classifier:
+        window_dims: ['192', '128'] # aspect 1.5
+        # window_dims: ['144', '96'] # aspect 1.5
+        # window_dims: ['96', '64'] # aspect 1.5
+        # window_dims: ['48', '32'] # aspect 1.5
+
+        # window_dims: ['176', '128'] # aspect 1.375
+        # window_dims: ['128', '96'] # aspect 1.333333
+        # window_dims: ['88', '64'] # aspect 1.375
+
+
         # Number of positive and negative images to train with.
         # pos_num: '19479' # KITTI dataset
 
-        # pos_num: '19479'
-        # neg_num: '100000'
-
         pos_num: '19479'
         neg_num: '100000'
+
+        # pos_num: '1000'
+        # neg_num: '1000'
 
         # Number of rounds of hard-negative mining to perform
         mining_rounds: '2'
@@ -102,6 +111,8 @@ training:
     cascade:
         featureType: { paramSet: [HOG] } # {HAAR(default), LBP, HOG}
         # featureType: { paramSet: [HAAR, LBP, HOG] } # {HAAR(default), LBP, HOG}
+
+        # Window size for cascade classifier:
         sampleSize: ['96', '64'] # [24, 24]
     boost:
         minHitRate: '0.995' # 0.995
@@ -128,8 +139,8 @@ testing:
         # - /Users/mitchell/data/imagenet/test
         # - /Users/mitchell/data/car-detection/maths
         # - /Users/mitchell/data/car-detection-/university
-        - /Users/mitchell/data/car-detection/shopping
+        # - /Users/mitchell/data/car-detection/shopping
         # - /Users/mitchell/data/kitti/training/image_2
-        # - /Users/mitchell/data/kitti/testing/image_2
+        - /Users/mitchell/data/kitti/testing/image_2
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative_test_set/
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_test_set/

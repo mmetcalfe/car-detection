@@ -233,6 +233,11 @@ class PixelRectangle(np.ndarray):
         # reg_w = max(1, int(fn_inv(fn_reg_w)))
 
         # Prefer smaller rectangles:
+        # Note: We sample from a distribution that has been chosen and tuned to
+        #       give qualitatively acceptable results.
+        #       i.e. It chooses larger rectangles less often than smaller
+        #       rectangles (because they tend to overlap more and so are more similar).
+        # See trainhog.test_random_with_aspect for a visualisation.
         a = 0.5
         b = 2
         r = max_w - min_w

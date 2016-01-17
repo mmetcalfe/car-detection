@@ -118,16 +118,6 @@ def hog_info_dicts_match(info_a, info_b):
     return result
 
 def name_from_hog_descriptor(hog):
-    from strutils import camel_humps_acronym
-    from strutils import make_filename_safe
-
+    from strutils import safe_name_from_info_dict
     info = get_hog_info_dict(hog)
-
-    safe_info = {}
-    for k, v in info.iteritems():
-        safe_name = camel_humps_acronym(k)
-        safe_val = make_filename_safe(str(v))
-        safe_info[safe_name] = safe_val
-
-    trialName = 'hog_' + '_'.join(map(lambda (k,v): k+v, safe_info.iteritems()))
-    return trialName
+    return safe_name_from_info_dict(info, 'hog_')

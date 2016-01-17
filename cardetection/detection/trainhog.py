@@ -7,6 +7,7 @@ import cv2
 import PIL.Image
 import cascadetraining as training
 import cardetection.carutils.images as utils
+import cardetection.carutils.strutils as strutils
 import cardetection.carutils.geometry as gm
 from progress.bar import Bar as ProgressBar
 from cardetection.carutils.datastore import DataStore
@@ -27,7 +28,6 @@ def get_svm_detector(svm_file_path):
     if not os.path.isfile(svm_file_path):
         raise ValueError('Input file \'{}\' does not exist!'.format(svm_file_path))
     with open(svm_file_path, 'r') as fh:
-        print 'lines = fh.readlines()'
         lines = fh.readlines()
 
         # Remove invalid YAML version line:
@@ -46,7 +46,7 @@ def get_svm_detector(svm_file_path):
                 usv_begin = i
             if 'decision_functions' in line:
                 usv_end = i
-        print usv_begin, usv_end
+        # print usv_begin, usv_end
         if usv_begin and usv_end:
             del lines[usv_begin:usv_end]
 
@@ -56,9 +56,7 @@ def get_svm_detector(svm_file_path):
         # Parse the file as YAML:
         import yaml
         # svm_yaml = yaml.load(fh)
-        print 'svm_yaml = yaml.load(yamlstring)'
         svm_yaml = yaml.load(yamlstring)
-        print 'done'
 
     support_vecs = svm_yaml['opencv_ml_svm']['support_vectors']
     rho = svm_yaml['opencv_ml_svm']['decision_functions'][0]['rho']
@@ -145,9 +143,12 @@ def train_svm(svm_save_path, descriptors, labels):
 
 def test_classifier(classifier_yaml, svm_file_path, window_dims):
     print 'Loading detector...'
+    print svm_file_path
     #  Set the trained svm to my_hog
     hog_detector = get_svm_detector(svm_file_path)
     hog = get_hog_object(window_dims)
+    print len(hog_detector)
+    print hog.getDescriptorSize()
     hog.setSVMDetector(hog_detector)
     print '...[done]'
 
@@ -170,9 +171,11 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
                 current_scale = min(sx, sy)
                 img = cv2.resize(img, dsize=None, fx=current_scale, fy=current_scale)
 
-            while img.shape[1] > 2000:
-                print 'resize:', img_path, img.shape
-                img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
+            # img = cv2.resize(img, dsize=None, fx=1.5, fy=1.5)
+
+            # while img.shape[1] > 2000:
+            #     print 'resize:', img_path, img.shape
+            #     img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
 
             # # Check whether the image is upside-down:
             # if checkImageOrientation(img_path):
@@ -182,13 +185,14 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             print 'Detecting: {}'.format(img_path)
-            winStride = (8,8)
+            winStride = (4,4)
+            # winStride = (8,8)
             padding = (0,0)
             # minSize = (img.shape[0] / 50, img.shape[1] / 50)
             cars, weights = hog.detectMultiScale(img,
                 winStride=winStride,
                 padding=padding,
-                scale=1.05,
+                scale=1.02,
                 useMeanshiftGrouping=False
             )
             print 'cars:', cars
@@ -268,6 +272,7 @@ def generate_negative_regions(bak_img_dir, neg_num, window_dims):
                 continue
 
             # Don't oversample small images:
+            # Note: Use an arbitrary, probabilistic rejection strategy.
             prob = (min_w / float(w))
             if np.random.uniform() > prob:
                 next_img_list.append(img)
@@ -368,6 +373,62 @@ def load_region_descriptors(trial_file):
 
     return hog, regions, descriptors
 
+def create_or_load_descriptors(classifier_yaml, hog):
+    pos_img_dir = classifier_yaml['dataset']['directory']['positive']
+    pos_num = int(classifier_yaml['training']['svm']['pos_num'])
+    bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
+    bak_img_dir = classifier_yaml['dataset']['directory']['background']
+    neg_num = int(classifier_yaml['training']['svm']['neg_num'])
+
+    # pos_descriptor_file = 'output/pos_descriptors.pickle'
+    # neg_descriptor_file = 'output/neg_descriptors.pickle'
+    # if not (os.path.isfile(pos_descriptor_file) and os.path.isfile(neg_descriptor_file)):
+    store = DataStore()
+
+    print 'db_name:', store.db_name_for_hog(hog)
+    print 'hog_name:', utils.name_from_hog_descriptor(hog)
+
+    # if not store.has_region_descriptors_for_hog(hog):
+    # Preprocess samples:
+    #   - generate/select sample regions
+    #   - compute and descriptors for all samples
+    #   - save the regions and descriptors to a file
+
+    curr_pos_num = store.num_region_descriptors(hog, 1)
+    req_pos_num = pos_num - curr_pos_num
+    print 'pos_num:', pos_num
+    print 'curr_pos_num:', curr_pos_num
+    print 'req_pos_num:', req_pos_num
+    if req_pos_num > 0:
+        # if not os.path.isfile(pos_descriptor_file):
+        pos_regions = choose_training_samples(pos_img_dir, req_pos_num, bbinfo_dir=bbinfo_dir)
+        pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
+        # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
+        store.save_region_descriptors(pos_reg_descriptors, hog)
+
+    curr_neg_num = store.num_region_descriptors(hog, -1)
+    req_neg_num = neg_num - curr_neg_num
+    print 'neg_num:', neg_num
+    print 'curr_neg_num:', curr_neg_num
+    print 'req_neg_num:', req_neg_num
+    if req_neg_num > 0:
+        # if not os.path.isfile(neg_descriptor_file):
+        neg_regions = generate_negative_regions(bak_img_dir, req_neg_num, window_dims)
+        neg_reg_descriptors = compute_hog_descriptors(hog, neg_regions, window_dims, -1)
+        # save_region_descriptors(hog, neg_regions, neg_descriptors, 'neg_descriptors')
+        store.save_region_descriptors(neg_reg_descriptors, hog)
+    # else:
+    # Load all descriptors and the hog object used to generate them:
+    # hog, reg_descriptors = store.load_region_descriptors_for_hog(hog)
+    hog, pos_reg_descriptors = store.load_region_descriptors_for_hog(hog, pos_num,  1)
+    hog, neg_reg_descriptors = store.load_region_descriptors_for_hog(hog, neg_num, -1)
+        # hog, reg_descriptors = store.load_region_descriptors('hog_Llht0,2_n64_gcFalse_hnt0_bs8x8_cs8x8_ws4,0_da1')
+    #     hog, pos_regions, pos_descriptors = load_region_descriptors(pos_descriptor_file)
+    #     hog, neg_regions, neg_descriptors = load_region_descriptors(neg_descriptor_file)
+
+    reg_descriptors = list(pos_reg_descriptors) + list(neg_reg_descriptors)
+    return reg_descriptors, hog
+
 if __name__ == '__main__':
     # random.seed(123454321) # Use deterministic samples.
 
@@ -380,54 +441,18 @@ if __name__ == '__main__':
     classifier_yaml = training.loadYamlFile(args.classifier_yaml)
     output_dir = args.classifier_yaml.split('.yaml')[0]
 
-    window_dims = (144, 96) # aspect: 1.5
-    # window_dims = (128, 96) # aspect: 1.3
-    # window_dims = (96, 64) # aspect: 1.5
+    window_dims = tuple(map(int, classifier_yaml['training']['svm']['window_dims']))
 
-    svm_save_path = 'car_detector.yaml'
-    pos_img_dir = classifier_yaml['dataset']['directory']['positive']
-    pos_num = int(classifier_yaml['training']['svm']['pos_num'])
-    bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
-    bak_img_dir = classifier_yaml['dataset']['directory']['background']
-    neg_num = int(classifier_yaml['training']['svm']['neg_num'])
+    # Create the hog object with which to compute the descriptors:
+    hog = get_hog_object(window_dims)
 
-    hog, pos_regions, pos_descriptors = None, None, None
-    hog, neg_regions, neg_descriptors = None, None, None
-
-    pos_descriptor_file = 'output/pos_descriptors.pickle'
-    neg_descriptor_file = 'output/neg_descriptors.pickle'
-    if not (os.path.isfile(pos_descriptor_file) and os.path.isfile(neg_descriptor_file)):
-        # Create the hog object with which to compute the descriptors:
-        hog = get_hog_object(window_dims)
-
-        # Preprocess samples:
-        #   - generate/select sample regions
-        #   - compute and descriptors for all samples
-        #   - save the regions and descriptors to a file
-
-        store = DataStore()
-
-        if not os.path.isfile(pos_descriptor_file):
-            pos_regions = choose_training_samples(pos_img_dir, pos_num, bbinfo_dir=bbinfo_dir)
-            pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
-            # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
-            store.save_region_descriptors(pos_reg_descriptors, hog)
-
-        if not os.path.isfile(neg_descriptor_file):
-            neg_regions = generate_negative_regions(bak_img_dir, neg_num, window_dims)
-            neg_reg_descriptors = compute_hog_descriptors(hog, neg_regions, window_dims, -1)
-            # save_region_descriptors(hog, neg_regions, neg_descriptors, 'neg_descriptors')
-            store.save_region_descriptors(neg_reg_descriptors, hog)
-    else:
-        # Load all descriptors and the hog object used to generate them:
-        store = DataStore()
-        hog, reg_descriptors = store.load_region_descriptors('hog_Llht0,2_n64_gcFalse_hnt0_bs8x8_cs8x8_ws4,0_da1')
-    #     hog, pos_regions, pos_descriptors = load_region_descriptors(pos_descriptor_file)
-    #     hog, neg_regions, neg_descriptors = load_region_descriptors(neg_descriptor_file)
-
-    sys.exit(1)
-
+    db_name = utils.name_from_hog_descriptor(hog)
+    svm_name = strutils.safe_name_from_info_dict(classifier_yaml['training']['svm'], 'svm_')
+    svm_save_path = 'output/car_detector_{}_{}.yaml'.format(svm_name, db_name)
     if not os.path.isfile(svm_save_path):
+
+        reg_descriptors, hog = create_or_load_descriptors(classifier_yaml, hog)
+
         # Create lists of samples and labels:
         descriptors = [rd.descriptor for rd in reg_descriptors]
         labels = [rd.label for rd in reg_descriptors]

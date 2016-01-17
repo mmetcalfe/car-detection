@@ -14,12 +14,20 @@ class DataStore(object):
     def __init__(self):
         self.client = pymongo.MongoClient()
 
+    def db_name_for_hog(self, hog):
+        hog_name = utils.name_from_hog_descriptor(hog)
+        # Note: MongoDB limits database names to 64 characters, making hog_name too long.
+        #       Its hash value encoded in base64 is used instead.
+        import base64
+        return base64.urlsafe_b64encode(repr(hash(hog_name)))
+
+
     def save_region_descriptors(self, reg_desc_lst, hog):
         """ Save RegionDescriptors to a database based on their HOGDescriptor.
         """
 
         # Get the database for the given type of hog descriptor:
-        db_name = utils.name_from_hog_descriptor(hog)
+        db_name = self.db_name_for_hog(hog)
         print 'Retrieving database \'{}\'...'.format(db_name)
         db = self.client[db_name]
         print '...[done]'
@@ -51,7 +59,7 @@ class DataStore(object):
         self.client.close()
 
     # DataStore.load_region_descriptors :: String -> (HOGDescriptor, generator(RegionDescriptor))
-    def load_region_descriptors(self, db_name):
+    def load_region_descriptors(self, db_name, limit_num=None, label_val=None):
         print 'Retrieving database \'{}\'...'.format(db_name)
         db = self.client[db_name]
         print '...[done]'
@@ -71,10 +79,32 @@ class DataStore(object):
         # Get the region descriptors collection:
         print 'Loading regions descriptors...'
         reg_desc_coll = db.region_descriptors
-        reg_desc_gen = (utils.RegionDescriptor.from_dict(info) for info in reg_desc_coll.find())
+        cursor = None
+        if limit_num and label_val:
+            cursor = reg_desc_coll.find({'label': label_val}).limit(limit_num)
+        else:
+            cursor = reg_desc_coll.find()
+        reg_desc_gen = (utils.RegionDescriptor.from_dict(info) for info in cursor)
         print '...[done]'
 
         # # Close the client (it will automatically reopen if we use it again):
         # self.client.close()
 
         return hog, reg_desc_gen
+
+    def has_region_descriptors_for_hog(self, hog):
+        db_name = self.db_name_for_hog(hog)
+        return db_name in self.client.database_names()
+
+    def num_region_descriptors(self, hog, label_val):
+        if not self.has_region_descriptors_for_hog(hog):
+            return None
+            
+        db_name = self.db_name_for_hog(hog)
+        db = self.client[db_name]
+        reg_desc_coll = db.region_descriptors
+        return reg_desc_coll.find({'label': label_val}).count()
+
+    def load_region_descriptors_for_hog(self, hog, limit_num=None, label_val=None):
+        db_name = self.db_name_for_hog(hog)
+        return self.load_region_descriptors(db_name, limit_num, label_val)
