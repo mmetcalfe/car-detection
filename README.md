@@ -36,6 +36,8 @@ For carpark rendering:
 
 Trains and evaluates a set of classifiers based on the supplied `template.yaml` file.
 
+Note: A directory containing bounding box data files specifying the positive training samples must be present. This can be created using the annotation tool, the ImageNet downloader, or by converting the labels from the KITTI dataset.
+
 
 ## To train a HOG + Linear SVM classifier:
 
@@ -49,15 +51,12 @@ In another terminal, run:
 
 Trains a single classifier based on the supplied `classifier.yaml` file.
 
+Note: A directory containing bounding box data files specifying the positive training samples must be present. This can be created using the annotation tool, the ImageNet downloader, or by converting the labels from the KITTI dataset.
+
 
 ## To annotate images with bounding boxes:
 
     $ python -m cardetection.detection.annotation
-
-
-## To save KITTI labels for training:
-
-    $ python -m cardetection.detection.kitti
 
 
 ## To download images from ImageNet:
@@ -65,6 +64,11 @@ Trains a single classifier based on the supplied `classifier.yaml` file.
     $ python -m download_synset_images_with_info <download_dir>
 
 Downloads all images with bounding boxes from the synsets listed in `parent_words.yaml` to the given directory.
+
+
+## To save KITTI labels for training:
+
+    $ python -m cardetection.detection.kitti
 
 
 ## Other scripts:

@@ -73,11 +73,40 @@ dataset:
 
         background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
         negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
+
+    modifiers:
+        # Modifier ranges to be applied to positive samples:
+        # Note: Modifiers are applied in the following order:
+        #  - translate
+        #  - scale
+        #  - rotate
+        #  - xflip
+
+        # TODO: Add contrast + brightness adjustment.
+
+        # Whether to use interpolation when resizing samples:
+        use_interp: False
+
+        # Whether to allow flipping the sample horizontally:
+        enable_xflip: True # True or False
+
+        # Rotation range is [-max_rotation_degrees, max_rotation_degrees]:
+        max_rotation_degrees: '10.0'
+
+        # Max translation in each dimension as a fraction of sample size:
+        max_trans_frac: ['0.1', '0.1']
+
+        # Range of allowable scale factors (about the centre of the sample):
+        scale_range: ['0.9', '1.1']
+
+        # Use different random scaling factors for both the x and y axes,
+        # allowing the aspect ratio to change:
+        scale_axes_independently: True # True or False
 training:
     # Parameters for training a basic HOG + Linear SVM classifier:
     svm:
         # Window size for HOG + Linear SVM classifier:
-        window_dims: ['192', '128'] # aspect 1.5
+        # window_dims: ['192', '128'] # aspect 1.5
         # window_dims: ['144', '96'] # aspect 1.5
         # window_dims: ['96', '64'] # aspect 1.5
         # window_dims: ['48', '32'] # aspect 1.5
@@ -85,6 +114,9 @@ training:
         # window_dims: ['176', '128'] # aspect 1.375
         # window_dims: ['128', '96'] # aspect 1.333333
         # window_dims: ['88', '64'] # aspect 1.375
+        # window_dims: ['16', '16'] # aspect 1.375
+
+        window_dims: ['150', '100'] # aspect 1.5
 
 
         # Number of positive and negative images to train with.
@@ -138,9 +170,9 @@ testing:
     directories:
         # - /Users/mitchell/data/imagenet/test
         # - /Users/mitchell/data/car-detection/maths
-        # - /Users/mitchell/data/car-detection-/university
+        - /Users/mitchell/data/car-detection/university
         # - /Users/mitchell/data/car-detection/shopping
         # - /Users/mitchell/data/kitti/training/image_2
-        - /Users/mitchell/data/kitti/testing/image_2
+        # - /Users/mitchell/data/kitti/testing/image_2
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative_test_set/
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_test_set/

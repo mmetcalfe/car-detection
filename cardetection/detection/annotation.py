@@ -80,7 +80,7 @@ class OpenCVAnnotator(object):
 
         h, w = self.current_img.shape[:2]
         if self.flipped:
-            rect = rect.flipped((w,h))
+            rect = rect.rotated_180((w,h))
 
         oh, ow = self.original_shape[:2]
         rect = rect.scaleImage((w,h), (ow, oh))
@@ -153,7 +153,7 @@ class OpenCVAnnotator(object):
                     self.flipped = False
                     h, w = self.current_img.shape[:2]
                     rects = self.getImageRectangles(self.current_path)
-                    rects = map(lambda r: r.flipped((w,h)), rects)
+                    rects = map(lambda r: r.rotated_180((w,h)), rects)
                     _, key = os.path.split(self.current_path)
                     self.bbinfo_map[key] = rects
                 else:
@@ -203,7 +203,7 @@ class OpenCVAnnotator(object):
                 if self.rect_tl and self.rect_br:
                     h, w = self.current_img.shape[:2]
                     rect = gm.PixelRectangle.fromCorners(self.rect_tl, self.rect_br)
-                    rect = rect.flipped((w,h))
+                    rect = rect.rotated_180((w,h))
                     self.rect_tl = tuple(rect.tl)
                     self.rect_br = tuple(rect.br)
                 print 'Flipped image.'
@@ -233,7 +233,7 @@ class OpenCVAnnotator(object):
             oh, ow = self.original_shape[:2]
             rect = rect.scaleImage((ow, oh), (w,h))
             if self.flipped:
-                rect = rect.flipped((w,h))
+                rect = rect.rotated_180((w,h))
 
             tl = tuple(rect.tl)
             br = tuple(rect.br)

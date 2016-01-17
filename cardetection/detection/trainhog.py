@@ -2,6 +2,7 @@ import os.path
 import random
 import argparse
 import yaml
+import itertools
 import numpy as np
 import cv2
 import PIL.Image
@@ -216,8 +217,8 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
 
-# chooseTrainingSamples :: String -> Int -> [String] -> [ImageRegion]
-def choose_training_samples(image_dir, sample_size, bbinfo_dir):
+# choose_positive_samples :: String -> Int -> [String] -> [ImageRegion]
+def choose_positive_samples(image_dir, sample_size, bbinfo_dir):
     filtered_image_list = utils.listImagesInDirectory(image_dir)
 
     # Filter out images without bounding boxes:
@@ -243,8 +244,68 @@ def choose_training_samples(image_dir, sample_size, bbinfo_dir):
     if len(img_regions) < sample_size:
         raise ValueError('Requested {} positive samples, but only {} could be found in \'{}\'!'.format(sample_size, len(img_regions), image_dir))
 
-
     return img_regions
+
+def view_image_regions(region_generator, dimensions, display_scale):
+    for reg in region_generator:
+        print 'view_image_regions:'
+        print reg.as_dict
+        original = reg.load_cropped_resized_sample(dimensions, utils.RegionModifiers())
+        sample = reg.load_cropped_resized_sample(dimensions)
+
+        display_shape = (dimensions[1]*display_scale, dimensions[0]*display_scale)
+        resized_sample = utils.resize_sample(sample, display_shape, use_interp=False)
+        resized_original = utils.resize_sample(original, display_shape, use_interp=False)
+
+        combined_shape = (display_shape[0], display_shape[1]*2)
+        combined = np.zeros((combined_shape[0], combined_shape[1], 3), np.uint8)
+        cw = display_shape[1]
+        combined[:, 0:cw] = resized_original
+        combined[:, cw:2*cw] = resized_sample
+
+        cv2.imshow('view_image_regions', combined)
+        # cv2.imshow('view_image_regions', resized)
+
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27: # ESC key
+                cv2.destroyAllWindows()
+                return
+            elif key != 255:
+                break
+
+# generate_positive_regions :: String -> Map String ??? -> String -> generator(ImageRegion)
+def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir):
+    filtered_image_list = utils.listImagesInDirectory(image_dir)
+
+    modifier_generator = utils.RegionModifiers.random_generator_from_config_dict(modifiers_config)
+
+    # Filter out images without bounding boxes:
+    global_info = training.loadGlobalInfo(bbinfo_dir)
+    bbox_filter = lambda img_path: os.path.split(img_path)[1] in global_info
+    source_images = filter(bbox_filter, filtered_image_list)
+
+    # Extract image regions:
+    source_regions = []
+    for img_path in source_images:
+        key = os.path.split(img_path)[1]
+        rects = training.rectanglesFromCacheString(global_info[key])
+        for rect in rects:
+            region = utils.ImageRegion(rect, img_path)
+            source_regions.append(region)
+
+    # Generate an infinite list of samples:
+    while True:
+        # Randomise the order of source images:
+        random.shuffle(source_regions)
+
+        # For each source region:
+        for reg in source_regions:
+            mod = modifier_generator.next()
+
+            # Assign a random modifier, and yield the region:
+            new_reg = utils.ImageRegion(reg.rect, reg.fname, mod)
+            yield new_reg
 
 def generate_negative_regions(bak_img_dir, neg_num, window_dims):
     print 'generate_negative_regions:'
@@ -373,7 +434,7 @@ def load_region_descriptors(trial_file):
 
     return hog, regions, descriptors
 
-def create_or_load_descriptors(classifier_yaml, hog):
+def create_or_load_descriptors(classifier_yaml, hog, window_dims):
     pos_img_dir = classifier_yaml['dataset']['directory']['positive']
     pos_num = int(classifier_yaml['training']['svm']['pos_num'])
     bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
@@ -395,19 +456,21 @@ def create_or_load_descriptors(classifier_yaml, hog):
     #   - save the regions and descriptors to a file
 
     curr_pos_num = store.num_region_descriptors(hog, 1)
-    req_pos_num = pos_num - curr_pos_num
+    req_pos_num = pos_num if curr_pos_num is None else pos_num - curr_pos_num
     print 'pos_num:', pos_num
     print 'curr_pos_num:', curr_pos_num
     print 'req_pos_num:', req_pos_num
     if req_pos_num > 0:
         # if not os.path.isfile(pos_descriptor_file):
-        pos_regions = choose_training_samples(pos_img_dir, req_pos_num, bbinfo_dir=bbinfo_dir)
+        pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir)
+        view_image_regions(pos_reg_generator, window_dims, 3)
+        pos_regions = itertools.islice(pos_reg_generator, 0, pos_num)
         pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
         # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
         store.save_region_descriptors(pos_reg_descriptors, hog)
 
     curr_neg_num = store.num_region_descriptors(hog, -1)
-    req_neg_num = neg_num - curr_neg_num
+    req_neg_num = neg_num if curr_neg_num is None else neg_num - curr_neg_num
     print 'neg_num:', neg_num
     print 'curr_neg_num:', curr_neg_num
     print 'req_neg_num:', req_neg_num
@@ -429,6 +492,7 @@ def create_or_load_descriptors(classifier_yaml, hog):
     reg_descriptors = list(pos_reg_descriptors) + list(neg_reg_descriptors)
     return reg_descriptors, hog
 
+
 if __name__ == '__main__':
     # random.seed(123454321) # Use deterministic samples.
 
@@ -442,6 +506,7 @@ if __name__ == '__main__':
     output_dir = args.classifier_yaml.split('.yaml')[0]
 
     window_dims = tuple(map(int, classifier_yaml['training']['svm']['window_dims']))
+    print 'window_dims:', window_dims
 
     # Create the hog object with which to compute the descriptors:
     hog = get_hog_object(window_dims)
@@ -451,7 +516,7 @@ if __name__ == '__main__':
     svm_save_path = 'output/car_detector_{}_{}.yaml'.format(svm_name, db_name)
     if not os.path.isfile(svm_save_path):
 
-        reg_descriptors, hog = create_or_load_descriptors(classifier_yaml, hog)
+        reg_descriptors, hog = create_or_load_descriptors(classifier_yaml, hog, window_dims)
 
         # Create lists of samples and labels:
         descriptors = [rd.descriptor for rd in reg_descriptors]

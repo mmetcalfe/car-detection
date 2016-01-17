@@ -321,14 +321,95 @@ class PixelRectangle(np.ndarray):
         assert(self.shape[0] == 4)
         return self.w / float(self.h)
 
+    @property
+    def exact_centre(self):
+        cx = self.x1 + (self.w - 1) / 2.0
+        cy = self.y1 + (self.h - 1) / 2.0
+        return (cx, cy)
+
     # If this rectangle lay within a frame of the given shape, and that frame
     # were to be rotated by 180 degrees along with the rectangle, return the
     # rectangle that would result.
-    def flipped(self, dimensions):
+    def rotated_180(self, dimensions):
         dims = np.array(dimensions)
         tl = dims - self.tl
         br = dims - self.br
         return PixelRectangle.fromCorners(tl, br)
+
+    # If this rectangle lay within a frame of the given shape, and that frame
+    # were to be mirrored about the x-axis along with the rectangle, return the
+    # rectangle that would result.
+    def mirrored_x(self, dimensions):
+        w, h_ = dimensions
+        x1 = w - self.x2
+        x2 = w - self.x1
+        return PixelRectangle.fromCoords(x1, self.y1, x2, self.y2)
+
+    # Translate this rectangle by the given vector while maintaining its width
+    # and height, and keeping it within the image frame.
+    # i.e. The full translation vector may not be applied if the rectangle is
+    # near the edge of the frame.
+    def translated(self, trans_vec, dimensions):
+        tx, ty = map(int, np.round(trans_vec))
+        w, h = dimensions
+
+        # Modify translation to keep rectangle within the frame:
+        # Note: Deliberately perform all corrections when the translation vector
+        # is (0, 0) so that this method can be used for correcting bad
+        # rectangles.
+        if tx >= 0:
+            if self.x2 + tx >= w:
+                tx = (w - 1) - self.x2
+        if tx <= 0:
+            if self.x1 + tx < 0:
+                tx = 0 - self.x1
+        if ty >= 0:
+            if self.y2 + ty >= h:
+                ty = (h - 1) - self.y2
+        if ty <= 0:
+            if self.y1 + ty < 0:
+                ty = 0 - self.y1
+
+        # Apply the translation:
+        x1 = self.x1 + tx
+        x2 = self.x2 + tx
+        y1 = self.y1 + ty
+        y2 = self.y2 + ty
+
+        return PixelRectangle.fromCoords(x1, y1, x2, y2)
+
+    # Return this rectangle with its width and height scaled by the scale
+    # factors, and placed such that its centre is as close as possible to its
+    # original location.
+    #
+    # If the scaling would cause any dimension of the rectangle to grow larger
+    # than the image frame, that dimension is clamped to the image dimension,
+    # possible changing the rectangle's aspect ratio.
+    #
+    # If the scaling casuses part of the rectangle to leave the image
+    # boundaries, the rectangle is translated back into the image boundaries.
+    #
+    # PixelRectangle.scaled_about_center :: (Float, Float) -> (Int, Int) -> PixelRectangle
+    def scaled_about_center(self, scale_factors, dimensions):
+        # Scale the current dimensions:
+        scaled_w = int(np.round(self.w * scale_factors[0]))
+        scaled_h = int(np.round(self.h * scale_factors[1]))
+
+        # Ensure that new dimensions fit inside the image frame:
+        max_w, max_h = dimensions
+        w = min(max_w, max(2, scaled_w))
+        h = min(max_h, max(2, scaled_h))
+
+        # Old centre:
+        cx, cy = self.exact_centre
+        # New corner from centre and new width:
+        x = int(np.round(cx - (w - 1) / 2.0))
+        y = int(np.round(cy - (h - 1) / 2.0))
+        new_rect = PixelRectangle.from_opencv_bbox([x, y, w, h])
+
+        # Translate the rectangle such that it is entirely contained within the
+        # frame:
+        return new_rect.translated([0, 0], dimensions)
 
     # Return the rectangle that would result if an image containing this
     # rectangle was scaled (along with the rectangle) from img_dims to have the
