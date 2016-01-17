@@ -91,7 +91,7 @@ dataset:
         enable_xflip: True # True or False
 
         # Rotation range is [-max_rotation_degrees, max_rotation_degrees]:
-        max_rotation_degrees: '10.0'
+        max_rotation_degrees: '8.0'
 
         # Max translation in each dimension as a fraction of sample size:
         max_trans_frac: ['0.1', '0.1']
@@ -107,7 +107,7 @@ training:
     svm:
         # Window size for HOG + Linear SVM classifier:
         # window_dims: ['192', '128'] # aspect 1.5
-        # window_dims: ['144', '96'] # aspect 1.5
+        window_dims: ['144', '96'] # aspect 1.5
         # window_dims: ['96', '64'] # aspect 1.5
         # window_dims: ['48', '32'] # aspect 1.5
 
@@ -116,13 +116,11 @@ training:
         # window_dims: ['88', '64'] # aspect 1.375
         # window_dims: ['16', '16'] # aspect 1.375
 
-        window_dims: ['150', '100'] # aspect 1.5
-
 
         # Number of positive and negative images to train with.
         # pos_num: '19479' # KITTI dataset
 
-        pos_num: '19479'
+        pos_num: '100000'
         neg_num: '100000'
 
         # pos_num: '1000'

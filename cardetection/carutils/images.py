@@ -146,9 +146,6 @@ class ImageRegion(object):
             modifiers = self.modifiers
         use_interp = modifiers.use_interp if modifiers else True
 
-        print '(dimensions[1], dimensions[0]):', (dimensions[1], dimensions[0])
-        print 'sample.shape:', sample.shape
-
         return resize_sample(sample, (dimensions[1], dimensions[0]), use_interp)
 
     @property

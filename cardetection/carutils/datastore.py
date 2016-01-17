@@ -99,7 +99,7 @@ class DataStore(object):
     def num_region_descriptors(self, hog, label_val):
         if not self.has_region_descriptors_for_hog(hog):
             return None
-            
+
         db_name = self.db_name_for_hog(hog)
         db = self.client[db_name]
         reg_desc_coll = db.region_descriptors

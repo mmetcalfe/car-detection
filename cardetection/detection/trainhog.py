@@ -274,8 +274,9 @@ def view_image_regions(region_generator, dimensions, display_scale):
             elif key != 255:
                 break
 
-# generate_positive_regions :: String -> Map String ??? -> String -> generator(ImageRegion)
-def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir):
+# generate_positive_regions :: String -> Map String ??? -> String -> (Int, Int) -> generator(ImageRegion)
+def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, min_size):
+    print 'generate_positive_regions:'
     filtered_image_list = utils.listImagesInDirectory(image_dir)
 
     modifier_generator = utils.RegionModifiers.random_generator_from_config_dict(modifiers_config)
@@ -291,8 +292,14 @@ def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir):
         key = os.path.split(img_path)[1]
         rects = training.rectanglesFromCacheString(global_info[key])
         for rect in rects:
+            # Reject small samples:
+            if rect.w < float(min_size[0]) or rect.h < float(min_size[1]):
+                continue
+
             region = utils.ImageRegion(rect, img_path)
             source_regions.append(region)
+
+    print 'Found {} source regions.'.format(len(source_regions))
 
     # Generate an infinite list of samples:
     while True:
@@ -462,7 +469,8 @@ def create_or_load_descriptors(classifier_yaml, hog, window_dims):
     print 'req_pos_num:', req_pos_num
     if req_pos_num > 0:
         # if not os.path.isfile(pos_descriptor_file):
-        pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir)
+        # pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, 0.5*np.array(window_dims))
+        pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, (48, 48))
         view_image_regions(pos_reg_generator, window_dims, 3)
         pos_regions = itertools.islice(pos_reg_generator, 0, pos_num)
         pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
