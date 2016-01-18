@@ -3,6 +3,22 @@ import numpy as np
 import cv2
 import cardetection.carutils.geometry as gm
 
+# save_opencv_bounding_box_info :: String -> Map String gm.PixelRectangle
+def save_opencv_bounding_box_info(bbinfo_file, bbinfo_map):
+    # Convert the bbinfo_map into a list of bbinfo_lines:
+    bbinfo_lines = []
+    for img_path, bboxes in bbinfo_map.iteritems():
+        num = len(bboxes)
+        if num == 0:
+            continue
+        bbox_strings = [' '.join(map(str, b.opencv_bbox)) for b in bboxes]
+        bbinfo_line = '{} {} {}'.format(img_path, num, ' '.join(bbox_strings))
+        bbinfo_lines.append(bbinfo_line)
+
+    # Write the bbinfo_lines to the bbinfo_file:
+    with open(bbinfo_file, 'w') as fh:
+        fh.write('\n'.join(bbinfo_lines))
+
 def resize_sample(sample, shape, use_interp=True):
     # Use INTER_AREA for shrinking and INTER_LINEAR for enlarging:
     interp = cv2.INTER_NEAREST
@@ -161,7 +177,9 @@ class ImageRegion(object):
     def from_dict(cls, info):
         rect = gm.PixelRectangle.from_opencv_bbox(info['rect'])
         fname = info['fname']
-        modifiers = RegionModifiers.from_dict(info['modifiers'])
+        modifiers = None
+        if 'modifiers' in info:
+            modifiers = RegionModifiers.from_dict(info['modifiers'])
         return cls(rect, fname, modifiers)
 
 class RegionDescriptor(object):

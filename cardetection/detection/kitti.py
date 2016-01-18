@@ -123,8 +123,8 @@ def labelPath(kitti_base, img_index):
     return os.path.normpath('{}/{:06d}.txt'.format(kitti_labels, img_index))
 # imagePath :: String -> Int -> String
 def imagePath(kitti_base, img_index):
-    kitti_labels = '{}/training/image_2/'.format(kitti_base)
-    return os.path.normpath('{}/{:06d}.png'.format(kitti_labels, img_index))
+    kitti_images = '{}/training/image_2/'.format(kitti_base)
+    return os.path.normpath('{}/{:06d}.png'.format(kitti_images, img_index))
 
 # readLabels :: String -> Int -> [KittiLabel]
 def readLabels(kitti_base, img_index):

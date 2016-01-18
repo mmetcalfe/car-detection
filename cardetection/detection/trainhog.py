@@ -165,8 +165,9 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
             img = cv2.imread(img_path)
 
             h, w = img.shape[:2]
-            max_dim = 1024.0
-            if w > max_dim + 50 or h > max_dim + 50:
+            max_dim = 2000.0
+            # if w > max_dim + 50 or h > max_dim + 50:
+            if abs(w - max_dim) > 50 or abs(h - max_dim) > 50:
                 sx = max_dim / w
                 sy = max_dim / h
                 current_scale = min(sx, sy)
@@ -186,14 +187,14 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             print 'Detecting: {}'.format(img_path)
-            winStride = (4,4)
-            # winStride = (8,8)
+            # winStride = (4,4)
+            winStride = (8,8)
             padding = (0,0)
             # minSize = (img.shape[0] / 50, img.shape[1] / 50)
             cars, weights = hog.detectMultiScale(img,
                 winStride=winStride,
                 padding=padding,
-                scale=1.02,
+                scale=1.05,
                 useMeanshiftGrouping=False
             )
             print 'cars:', cars
@@ -214,8 +215,14 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
                 # cv2.resizeWindow('img', 500, 500)
                 cv2.imshow('img', img)
                 # cv2.imshow('img',img)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+
+                while True:
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == 27: # ESC key
+                        cv2.destroyAllWindows()
+                        return
+                    elif key != 255:
+                        break
 
 # choose_positive_samples :: String -> Int -> [String] -> [ImageRegion]
 def choose_positive_samples(image_dir, sample_size, bbinfo_dir):
@@ -472,7 +479,7 @@ def create_or_load_descriptors(classifier_yaml, hog, window_dims):
         # pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, 0.5*np.array(window_dims))
         pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, (48, 48))
         view_image_regions(pos_reg_generator, window_dims, 3)
-        pos_regions = itertools.islice(pos_reg_generator, 0, pos_num)
+        pos_regions = list(itertools.islice(pos_reg_generator, 0, req_pos_num))
         pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
         # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
         store.save_region_descriptors(pos_reg_descriptors, hog)

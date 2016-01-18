@@ -3,7 +3,7 @@
 
 import os.path
 import cv2
-from cardetection.carutils.images import listImagesInDirectory
+import cardetection.carutils.images as utils
 import cardetection.carutils.geometry as gm
 import cardetection.detection.cascadetraining as cascadetraining
 
@@ -58,19 +58,7 @@ class OpenCVAnnotator(object):
             self.bbinfo_map[k] = cascadetraining.rectanglesFromCacheString(bbinfo_cache[k])
 
     def saveOpenCVBoundingBoxInfo(self, bbinfo_file):
-        # Convert the bbinfo_map into a list of bbinfo_lines:
-        bbinfo_lines = []
-        for img_path, bboxes in self.bbinfo_map.iteritems():
-            num = len(bboxes)
-            if num == 0:
-                continue
-            bbox_strings = [' '.join(map(str, b.opencv_bbox)) for b in bboxes]
-            bbinfo_line = '{} {} {}'.format(img_path, num, ' '.join(bbox_strings))
-            bbinfo_lines.append(bbinfo_line)
-
-        # Write the bbinfo_lines to the bbinfo_file:
-        with open(bbinfo_file, 'w') as fh:
-            fh.write('\n'.join(bbinfo_lines))
+        utils.save_opencv_bounding_box_info(bbinfo_file, self.bbinfo_map)
 
     def addRectangleToImage(self, img_path, rect):
         _, key = os.path.split(img_path)
@@ -98,7 +86,7 @@ class OpenCVAnnotator(object):
     # Annotate all images in the directory:
     def annotate_directory(self, img_dir, bbinfo_file):
         # Get sorted image list:
-        img_paths = sorted(listImagesInDirectory(img_dir))
+        img_paths = sorted(utils.listImagesInDirectory(img_dir))
 
         self.img_index = 0 # Set initial index.
         self.current_path = img_paths[self.img_index]

@@ -65,14 +65,21 @@ dataset:
         # bbinfo: /Users/mitchell/data/imagenet/bbinfo
         # positive: /Users/mitchell/data/imagenet/images
 
-        bbinfo: /Users/mitchell/data/kitti/bbinfo
-        positive: /Users/mitchell/data/kitti/training/image_2
+        # bbinfo: /Users/mitchell/data/kitti/bbinfo
+        # positive: /Users/mitchell/data/kitti/training/image_2
+        #
+        # # bbinfo: /Users/mitchell/data/car-detection/bbinfo
+        # # positive: /Users/mitchell/data/car-detection/shopping
+        #
+        # background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
+        # negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
 
-        # bbinfo: /Users/mitchell/data/car-detection/bbinfo
-        # positive: /Users/mitchell/data/car-detection/shopping
+        bbinfo: /Users/mitchell/data/synthetic/bbinfo
+        positive: /Users/mitchell/data/synthetic/positive
+        background: /Users/mitchell/data/synthetic/background
 
-        background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
-        negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
+        # Base directory when generating a dataset using syntheticdataset.py
+        synthetic: /Users/mitchell/data/synthetic
 
     modifiers:
         # Modifier ranges to be applied to positive samples:
@@ -107,8 +114,8 @@ training:
     svm:
         # Window size for HOG + Linear SVM classifier:
         # window_dims: ['192', '128'] # aspect 1.5
-        window_dims: ['144', '96'] # aspect 1.5
-        # window_dims: ['96', '64'] # aspect 1.5
+        # window_dims: ['144', '96'] # aspect 1.5
+        window_dims: ['96', '64'] # aspect 1.5
         # window_dims: ['48', '32'] # aspect 1.5
 
         # window_dims: ['176', '128'] # aspect 1.375
@@ -120,11 +127,12 @@ training:
         # Number of positive and negative images to train with.
         # pos_num: '19479' # KITTI dataset
 
-        pos_num: '100000'
-        neg_num: '100000'
+        # pos_num: '100000'
+        # neg_num: '100000'
+        # neg_num: '10000'
 
-        # pos_num: '1000'
-        # neg_num: '1000'
+        pos_num: '1000'
+        neg_num: '1000'
 
         # Number of rounds of hard-negative mining to perform
         mining_rounds: '2'
@@ -168,9 +176,10 @@ testing:
     directories:
         # - /Users/mitchell/data/imagenet/test
         # - /Users/mitchell/data/car-detection/maths
-        - /Users/mitchell/data/car-detection/university
+        # - /Users/mitchell/data/car-detection/university
         # - /Users/mitchell/data/car-detection/shopping
         # - /Users/mitchell/data/kitti/training/image_2
+        - /Users/mitchell/data/positive
         # - /Users/mitchell/data/kitti/testing/image_2
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative_test_set/
         # - /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_test_set/

@@ -12,8 +12,8 @@ For several modules:
 
 For trainhog:
 
-    * MongoDB (https://docs.mongodb.org/manual/administration/install-community/)
-    * pymongo
+  * MongoDB (https://docs.mongodb.org/manual/administration/install-community/)
+  * pymongo
 
 Useful for correcting image orientations:
 (see cardetection.detection.cascadetraining.checkImageOrientation())
@@ -69,6 +69,11 @@ Downloads all images with bounding boxes from the synsets listed in `parent_word
 ## To save KITTI labels for training:
 
     $ python -m cardetection.detection.kitti
+
+
+## To generate a synthetic dataset:
+
+    $ python -m cardetection.detection.syntheticdataset
 
 
 ## Other scripts:
