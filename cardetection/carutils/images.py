@@ -3,6 +3,10 @@ import numpy as np
 import cv2
 import cardetection.carutils.geometry as gm
 
+def crop_rectangle(img, pixel_rect):
+    cropped = img[pixel_rect.y1:pixel_rect.y2, pixel_rect.x1:pixel_rect.x2, :]
+    return cropped
+
 # save_opencv_bounding_box_info :: String -> Map String gm.PixelRectangle
 def save_opencv_bounding_box_info(bbinfo_file, bbinfo_map):
     # Convert the bbinfo_map into a list of bbinfo_lines:

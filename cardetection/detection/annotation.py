@@ -38,7 +38,7 @@ class OpenCVAnnotator(object):
         cv2.namedWindow(self.winName)
 
     def delete_rectangles_at_point(self, pt):
-        rects = self.getImageRectangles(self.current_path)
+        rects = self.get_image_rectangles(self.current_path)
 
         def rectContains(r, pt):
             h, w = self.current_img.shape[:2]
@@ -51,31 +51,35 @@ class OpenCVAnnotator(object):
         _, key = os.path.split(self.current_path)
         self.bbinfo_map[key] = rects
 
-    def loadOpenCVBoundingBoxInfo(self, bbinfo_file):
+    def load_opencv_bounding_box_info(self, bbinfo_file):
         self.bbinfo_map = {}
         bbinfo_cache = cascadetraining.loadInfoFile(bbinfo_file)
         for k in bbinfo_cache:
             self.bbinfo_map[k] = cascadetraining.rectanglesFromCacheString(bbinfo_cache[k])
 
-    def saveOpenCVBoundingBoxInfo(self, bbinfo_file):
+    def save_opencv_bounding_box_info(self, bbinfo_file):
         utils.save_opencv_bounding_box_info(bbinfo_file, self.bbinfo_map)
 
-    def addRectangleToImage(self, img_path, rect):
-        _, key = os.path.split(img_path)
-
-        if not key in self.bbinfo_map:
-            self.bbinfo_map[key] = []
-
+    def convert_to_rect_in_original(self, rect):
         h, w = self.current_img.shape[:2]
         if self.flipped:
             rect = rect.rotated_180((w,h))
 
         oh, ow = self.original_shape[:2]
         rect = rect.scaleImage((w,h), (ow, oh))
+        return rect
+
+    def add_rectangle_to_image(self, img_path, rect):
+        _, key = os.path.split(img_path)
+
+        if not key in self.bbinfo_map:
+            self.bbinfo_map[key] = []
+
+        rect = self.convert_to_rect_in_original(rect)
 
         self.bbinfo_map[key].append(rect)
 
-    def getImageRectangles(self, img_path):
+    def get_image_rectangles(self, img_path):
         _, key = os.path.split(img_path)
 
         if not key in self.bbinfo_map:
@@ -91,6 +95,7 @@ class OpenCVAnnotator(object):
         self.img_index = 0 # Set initial index.
         self.current_path = img_paths[self.img_index]
         self.current_img = cv2.imread(self.current_path)
+        self.original_img = self.current_img
         self.original_shape = self.current_img.shape
         self.current_scale = 1.0
         self.flipped = False
@@ -101,7 +106,7 @@ class OpenCVAnnotator(object):
         self.rect_br = None
 
         if os.path.isfile(bbinfo_file):
-            self.loadOpenCVBoundingBoxInfo(bbinfo_file)
+            self.load_opencv_bounding_box_info(bbinfo_file)
 
         cv2.setMouseCallback(self.winName, annotate_mouse_callback, self)
         while True:
@@ -129,7 +134,7 @@ class OpenCVAnnotator(object):
             # Save all bounding boxes to the output file:
             elif key == ord('s'):
                 print 'Saved: {}'.format(bbinfo_file)
-                self.saveOpenCVBoundingBoxInfo(bbinfo_file)
+                self.save_opencv_bounding_box_info(bbinfo_file)
 
             # Overwrite current image with a rotated copy:
             elif key == ord('i'):
@@ -138,9 +143,10 @@ class OpenCVAnnotator(object):
                     self.current_img = cv2.imread(self.current_path)
                     self.current_img = cv2.flip(self.current_img, -1)
                     cv2.imwrite(self.current_path, self.current_img)
+                    self.original_img = self.current_img
                     self.flipped = False
                     h, w = self.current_img.shape[:2]
-                    rects = self.getImageRectangles(self.current_path)
+                    rects = self.get_image_rectangles(self.current_path)
                     rects = map(lambda r: r.rotated_180((w,h)), rects)
                     _, key = os.path.split(self.current_path)
                     self.bbinfo_map[key] = rects
@@ -148,7 +154,7 @@ class OpenCVAnnotator(object):
                     print 'Current image has not been rotated.'
 
             # Add a new bounding box:
-            elif key == ord('n') or space_pressed:
+            elif key == ord('n') or (space_pressed and not self.editing):
                 print 'New bounding box'
                 self.editing = True
 
@@ -158,10 +164,10 @@ class OpenCVAnnotator(object):
                 self.editing = False
 
             # Accept bounding box:
-            elif key == 13 or space_pressed: # Enter / CR key
+            elif key == 13 or (space_pressed and self.editing): # Enter / CR key
                 if not self.rect_tl is None and not self.rect_br is None:
                     rect = gm.PixelRectangle.fromCorners(self.rect_tl, self.rect_br)
-                    self.addRectangleToImage(self.current_path, rect)
+                    self.add_rectangle_to_image(self.current_path, rect)
                     print 'Bounding box added'
                     self.editing = False
                     self.rect_tl = None
@@ -180,12 +186,14 @@ class OpenCVAnnotator(object):
                 self.img_index %= len(img_paths)
                 self.current_path = img_paths[self.img_index]
                 self.current_img = cv2.imread(self.current_path)
+                self.original_img = self.current_img
                 self.original_shape = self.current_img.shape[:2]
                 self.flipped = False
                 print 'Moved to image: {}, {}'.format(self.img_index, self.current_path)
 
             elif flip_pressed: # up arrow
                 self.current_img = cv2.flip(self.current_img, -1)
+                self.original_img = cv2.flip(self.original_img, -1)
                 self.flipped = not self.flipped
 
                 if self.rect_tl and self.rect_br:
@@ -217,7 +225,7 @@ class OpenCVAnnotator(object):
         clone_img = self.current_img.copy()
 
         # Draw bounding boxes for current image:
-        for rect in self.getImageRectangles(self.current_path):
+        for rect in self.get_image_rectangles(self.current_path):
             oh, ow = self.original_shape[:2]
             rect = rect.scaleImage((ow, oh), (w,h))
             if self.flipped:
@@ -232,6 +240,23 @@ class OpenCVAnnotator(object):
         if self.rect_tl and self.rect_br:
             cv2.rectangle(clone_img, self.rect_tl, self.rect_br, (255, 255, 255), 3)
             cv2.rectangle(clone_img, self.rect_tl, self.rect_br, (0, 255, 0), 2)
+
+            rect = gm.PixelRectangle.fromCorners(self.rect_tl, self.rect_br)
+            rect = self.convert_to_rect_in_original(rect)
+
+            cropped = utils.crop_rectangle(self.original_img, rect)
+            cw = self.current_img.shape[1]
+            ch = self.current_img.shape[0]
+            if rect.w > 5 and rect.h > 5:
+                if rect.w > rect.h:
+                    preview_width = cw / 5.0
+                    preview_height = preview_width / rect.aspect
+                else:
+                    preview_height = ch / 4.0
+                    preview_width = preview_height * rect.aspect
+                new_shape = (max(2, int(round(preview_height))), max(2, int(round(preview_width))))
+                preview = utils.resize_sample(cropped, new_shape, use_interp=False)
+                clone_img[0:new_shape[0],0:new_shape[1],:] = preview
 
         cv2.imshow(self.winName, clone_img)
         # cv2.imshow(self.winName, self.current_img)
