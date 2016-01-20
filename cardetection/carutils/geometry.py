@@ -211,11 +211,17 @@ class PixelRectangle(np.ndarray):
         return cls.fromCorners([x1, y1], [x2, y2])
 
     @classmethod
-    def random_with_aspect(cls, min_size, img_dims):
-        assert(len(img_dims) == 2 and len(min_size) == 2)
-        assert(min_size[0] <= img_dims[0] and min_size[1] <= img_dims[1])
+    def random_with_same_aspect(cls, window_dims, img_dims, min_side_length=48):
+        assert(len(img_dims) == 2 and len(window_dims) == 2)
+        assert(window_dims[0] <= img_dims[0] and window_dims[1] <= img_dims[1])
 
-        min_size = np.array(min_size)
+        window_dims = np.array(window_dims, dtype=np.float)
+        aspect = window_dims[1] / float(window_dims[0])
+
+        ww, wh = window_dims
+        sf = min_side_length / min(ww, wh)
+        raw_min_size = map(int, np.round(window_dims*sf))
+        min_size = np.maximum(raw_min_size, [min_side_length, min_side_length])
 
         w, h = img_dims
         min_w, min_h = min_size
@@ -237,7 +243,7 @@ class PixelRectangle(np.ndarray):
         #       give qualitatively acceptable results.
         #       i.e. It chooses larger rectangles less often than smaller
         #       rectangles (because they tend to overlap more and so are more similar).
-        # See trainhog.test_random_with_aspect for a visualisation.
+        # See trainhog.test_random_with_same_aspect for a visualisation.
         a = 0.5
         b = 2
         r = max_w - min_w
@@ -458,6 +464,77 @@ class PixelRectangle(np.ndarray):
             return False;
 
         return True
+
+    def intersects_pixelrectangle(self, other):
+        if self.x2 < other.x1:
+            return False
+        if other.x2 < self.x1:
+            return False
+        if self.y2 < other.y1:
+            return False
+        if other.y2 < self.y1:
+            return False
+
+        return True
+
+    # Return minimum distance between this rectangle and the given rectangle.
+    # If the rectangles overlap, returns a negative value indicating the size of
+    # the overlap.
+    def distance_pixelrectangle(self, other):
+        # If x-overlap and not y-overlap:
+        x_dist = min(abs(other.x1 - self.x2), abs(self.x1 - other.x2))
+        y_dist = min(abs(other.y1 - self.y2), abs(self.y1 - other.y2))
+
+        x_overlap = not (self.x2 < other.x1 and other.x2 < self.x1)
+        y_overlap = not (self.y2 < other.y1 and other.y2 < self.y1)
+
+        if x_overlap and not y_overlap:
+            return x_dist
+
+        if y_overlap and not x_overlap:
+            return y_dist
+
+        if not x_overlap and not y_overlap:
+            # Corner-to-corner distance:
+            return np.sqrt(x_dist*x_dist + y_dist*y_dist)
+
+        # The rectangles overlap.
+        # Return the minimum overlap as a negative integer:
+        x_dist = max(other.x1 - self.x2, self.x1 - other.x2)
+        y_dist = max(other.y1 - self.y2, self.y1 - other.y2)
+        return max(x_dist, y_dist)
+
+    # Return the rectangle that results from translating this rectangle the
+    # shortest distance horizontally or vertically such that it does not
+    # intersect the given rectangle.
+    def moved_to_clear(self, other, return_offset=False):
+        if not self.intersects_pixelrectangle(other):
+            return PixelRectangle.from_opencv_bbox(self.opencv_bbox)
+
+        left_offset = self.x2 - other.x1 + 1
+        right_offset = self.x1 - other.x2 - 1
+        up_offset = self.y2 - other.y1 + 1
+        down_offset = self.y1 - other.y2 - 1
+
+        x_dist = min(abs(left_offset), abs(right_offset))
+        y_dist = min(abs(up_offset), abs(down_offset))
+
+        dx = 0
+        dy = 0
+
+        if x_dist < y_dist:
+            dx = left_offset if abs(left_offset) < abs(right_offset) else right_offset
+        else:
+            dy = up_offset if abs(up_offset) < abs(down_offset) else down_offset
+
+        x, y, w, h = self.opencv_bbox
+        rect = PixelRectangle.from_opencv_bbox([x-dx, y-dy, w, h])
+        if not return_offset:
+            return rect
+        else:
+            offset = (-dx, -dy)
+            return rect, offset
+
 
 # extendBoundingBox :: Rectangle -> Float -> Rectangle
 def extendBoundingBox(rect, new_aspect):

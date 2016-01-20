@@ -52,10 +52,7 @@ class OpenCVAnnotator(object):
         self.bbinfo_map[key] = rects
 
     def load_opencv_bounding_box_info(self, bbinfo_file):
-        self.bbinfo_map = {}
-        bbinfo_cache = cascadetraining.loadInfoFile(bbinfo_file)
-        for k in bbinfo_cache:
-            self.bbinfo_map[k] = cascadetraining.rectanglesFromCacheString(bbinfo_cache[k])
+        self.bbinfo_map = utils.load_opencv_bounding_box_info(bbinfo_file)
 
     def save_opencv_bounding_box_info(self, bbinfo_file):
         utils.save_opencv_bounding_box_info(bbinfo_file, self.bbinfo_map)
@@ -114,10 +111,17 @@ class OpenCVAnnotator(object):
             key = cv2.waitKey(1) & 0xFF
 
             # Use arrow keys, or < and > to move between images.
+            # ASCII Codes:
+            #   {28: 'right arrow', 29: 'left arrow'}
+            #   {30: 'up arrow', 31: 'down arrow'}
+            # Non-standard codes that work for me:
+            #   r: 3, l: 2, u: 0, d: 1
             right_pressed = (key == 28 or key == 46 or key == 3)
             left_pressed = (key == 29 or key == 44 or key == 2)
 
             # Use delete or backspace to enter delete mode.
+            # ASCII DEL: 127 (the backspace key on OSX)
+            # What OpenCV makes of my delete key: 40
             delete_pressed = (key == 127 or key == 40 or key == 8)
 
             # Use up arrow or 'f' to flip an image.
@@ -167,19 +171,17 @@ class OpenCVAnnotator(object):
             elif key == 13 or (space_pressed and self.editing): # Enter / CR key
                 if not self.rect_tl is None and not self.rect_br is None:
                     rect = gm.PixelRectangle.fromCorners(self.rect_tl, self.rect_br)
-                    self.add_rectangle_to_image(self.current_path, rect)
-                    print 'Bounding box added'
-                    self.editing = False
-                    self.rect_tl = None
-                    self.rect_br = None
+                    if rect.w > 10 and rect.h > 10:
+                        self.add_rectangle_to_image(self.current_path, rect)
+                        print 'Bounding box added'
+                        self.editing = False
+                        self.rect_tl = None
+                        self.rect_br = None
+                    else:
+                        print 'WARNING: Small ({}x{}) bounding box was not added'.format(rect.w, rect.h)
                 else:
                     print 'WARNING: Invalid bounding box was not added'
 
-            # ASCII Codes:
-            #   {28: 'right arrow', 29: 'left arrow'}
-            #   {30: 'up arrow', 31: 'down arrow'}
-            # Non-standard codes that work for me:
-            #   r: 3, l: 2, u: 0, d: 1
             # Move to next/previous image:
             elif right_pressed or left_pressed:
                 self.img_index += 1 if right_pressed else -1
@@ -204,8 +206,6 @@ class OpenCVAnnotator(object):
                     self.rect_br = tuple(rect.br)
                 print 'Flipped image.'
 
-            # ASCII DEL: 127 (the backspace key on OSX)
-            # What OpenCV makes of my delete key: 40
             elif delete_pressed:
                 self.deleting = True
                 print 'Click a bounding box to DELETE it.'
@@ -215,7 +215,7 @@ class OpenCVAnnotator(object):
 
     def update_display(self):
         h, w = self.current_img.shape[:2]
-        max_dim = 1024.0
+        max_dim = 1500.0
         if w > max_dim + 50 or h > max_dim + 50:
             sx = max_dim / w
             sy = max_dim / h
@@ -266,7 +266,9 @@ class OpenCVAnnotator(object):
 
 if __name__ == '__main__':
     img_dir = '/Users/mitchell/data/car-detection/shopping'
-    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__bbinfo.dat'
+    # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__bbinfo.dat'
+    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat'
+    print bbinfo_file
 
     annotator = OpenCVAnnotator()
     annotator.annotate_directory(img_dir, bbinfo_file)

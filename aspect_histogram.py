@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # for img_path in training.sampleTrainingImages(positive_dir, ['.*'], None, require_bboxes=True, bbinfo_dir=bbinfo_dir):
     #     key = img_path.split('/')[-1]
     #     rects_str = global_info[key]
-    #     rects = training.rectanglesFromCacheString(rects_str)
+    #     rects = utils.rectangles_from_cache_string(rects_str)
     #     for rect in rects:
     #         all_rects.append(rect)
     #

@@ -13,7 +13,7 @@ import sys
 from pprint import pprint
 
 import cardetection.carutils.geometry as gm
-from cardetection.carutils.images import listImagesInDirectory
+import cardetection.carutils.images as utils
 
 class TooFewImagesError(Exception):
     def __init__(self, presentCounts, requiredCounts):
@@ -31,23 +31,12 @@ def loadYamlFile(fname):
     file.close()
     return data
 
-# loadInfoFile :: String -> Map String String
-def loadInfoFile(bbinfo_file):
-    bbinfo_cache = {}
-    with open(bbinfo_file, 'r') as dat_file:
-        for line in dat_file.readlines():
-            parts = line.strip().partition(' ')
-            image_path = parts[0].split('/')[-1]
-            details = parts[2]
-            bbinfo_cache[image_path] = details
-    return bbinfo_cache
-
 # loadGlobalInfo :: String -> Map String String
 def loadGlobalInfo(bbinfo_folder):
     global_info = {}
     cache_files = glob.glob("{}/{}__*.dat".format(bbinfo_folder, '*'))
     for cache_file_name in cache_files:
-        info_cache = loadInfoFile(cache_file_name)
+        info_cache = utils.load_info_file(cache_file_name)
         global_info.update(info_cache)
         # with open(cache_file_name, 'r') as dat_file:
         #     for line in dat_file.readlines():
@@ -82,7 +71,7 @@ def requiredImageCounts(trial_yaml):
 
 # sampleTrainingImages :: String -> [String] -> Int -> [String]
 def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, bbinfo_dir=None):
-    image_list = listImagesInDirectory(image_dir)
+    image_list = utils.listImagesInDirectory(image_dir)
     # regexString = '.*({})_.*\.jpg'.format('|'.join(synsets))
     # regexString = 'n?({})(_.*)?\.(jpg|png)'.format('|'.join(synsets))
     regexString = '(.*/)?({})(_.*)?\.(jpg|png)'.format('|'.join(synsets))
@@ -111,32 +100,6 @@ def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, 
 
     return image_sample
 
-# From: http://stackoverflow.com/a/312464
-# chunks :: [Int] -> [[Int]]
-def chunks(l, n):
-    """ Yield successive n-sized chunks from l.
-    """
-    for i in xrange(0, len(l), n):
-        yield l[i:i+n]
-
-# rectanglesFromCacheString :: String -> [Rectangle]
-def rectanglesFromCacheString(rects_str):
-    num, unused_, objs_str = rects_str.partition(' ')
-
-    obj_floats = map(float, objs_str.split(' '))
-    # obj_rounded = map(round, obj_floats)
-    obj_rounded = map(int, obj_floats) # Note: Rounding can cause invalid bounding boxes.
-    obj_ints = map(int, obj_rounded)
-
-    objs = []
-    if int(num) > 0:
-        objs = list(chunks(obj_ints, 4))
-
-    rects = map(gm.PixelRectangle.from_opencv_bbox, objs)
-
-    assert len(rects) == int(num)
-    return rects
-
 # checkBoundingBoxes :: [String] -> String -> IO ()
 def checkBoundingBoxes(img_paths, bbinfo_dir):
     global_info = loadGlobalInfo(bbinfo_dir)
@@ -158,7 +121,7 @@ def checkBoundingBoxes(img_paths, bbinfo_dir):
         # Get bounding box:
         key = img_path.split('/')[-1]
         rects_str = global_info[key]
-        rects = rectanglesFromCacheString(rects_str)
+        rects = utils.rectangles_from_cache_string(rects_str)
         for rect in rects:
             lf = rect.x < 0
             tf = rect.y < 0
@@ -419,7 +382,7 @@ def runClassifier(classifier_yaml, output_dir):
         results_dir = '{}/{}_results'.format(output_dir, test_source_name)
         detections_fname = '{}/{}_detections.dat'.format(output_dir, test_source_name)
 
-        img_list = listImagesInDirectory(test_dir)
+        img_list = utils.listImagesInDirectory(test_dir)
         random.shuffle(img_list)
 
         for img_path in img_list:
@@ -472,7 +435,7 @@ def viewPositiveSamples(classifier_yaml, output_dir):
     positive_dir = classifier_yaml['dataset']['directory']['positive']
 
     # for img_path in glob.glob("{}/*_*.jpg".format(positive_dir)):
-    # for img_path in listImagesInDirectory(positive_dir):
+    # for img_path in utils.listImagesInDirectory(positive_dir):
 
     pos_samples = sampleTrainingImages(positive_dir, ['.*'], None, require_bboxes=True, bbinfo_dir=bbinfo_dir)
 
@@ -483,7 +446,7 @@ def viewPositiveSamples(classifier_yaml, output_dir):
 
         key = img_path.split('/')[-1]
         rects_str = global_info[key]
-        rects = rectanglesFromCacheString(rects_str)
+        rects = utils.rectangles_from_cache_string(rects_str)
 
         print img_path, len(rects)
         for rect in rects:

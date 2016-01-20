@@ -165,7 +165,7 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
             img = cv2.imread(img_path)
 
             h, w = img.shape[:2]
-            max_dim = 2000.0
+            max_dim = 800.0
             # if w > max_dim + 50 or h > max_dim + 50:
             if abs(w - max_dim) > 50 or abs(h - max_dim) > 50:
                 sx = max_dim / w
@@ -205,7 +205,8 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
                 print cars
                 for (x,y,w,h) in cars:
                     # img = cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
-                    lw = max(2, img.shape[0] / 100)
+                    lw = max(2, min(img.shape[0], img.shape[1]) / 150)
+                    cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,255),lw+2)
                     cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),lw)
                     # roi_gray = gray[y:y+h, x:x+w]
                     # roi_color = img[y:y+h, x:x+w]
@@ -237,7 +238,7 @@ def choose_positive_samples(image_dir, sample_size, bbinfo_dir):
     img_regions = []
     for img_path in filtered_image_list:
         key = os.path.split(img_path)[1]
-        rects = training.rectanglesFromCacheString(global_info[key])
+        rects = utils.rectangles_from_cache_string(global_info[key])
         for rect in rects:
             region = utils.ImageRegion(rect, img_path)
             img_regions.append(region)
@@ -297,7 +298,7 @@ def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, min_size)
     source_regions = []
     for img_path in source_images:
         key = os.path.split(img_path)[1]
-        rects = training.rectanglesFromCacheString(global_info[key])
+        rects = utils.rectangles_from_cache_string(global_info[key])
         for rect in rects:
             # Reject small samples:
             if rect.w < float(min_size[0]) or rect.h < float(min_size[1]):
@@ -323,15 +324,15 @@ def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, min_size)
 
 def generate_negative_regions(bak_img_dir, neg_num, window_dims):
     print 'generate_negative_regions:'
-
     all_images = utils.listImagesInDirectory(bak_img_dir)
+    if len(all_images) == 0:
+        raise ValueError('The given directory \'{}\' contains no images.'.format(bak_img_dir))
     print '  Found {} images.'.format(len(all_images))
 
     image_list = all_images
     random.shuffle(image_list)
 
     img_regions = []
-
     min_w, min_h = window_dims
 
     progressbar = ProgressBar('Generating negative regions', max=neg_num)
@@ -352,7 +353,7 @@ def generate_negative_regions(bak_img_dir, neg_num, window_dims):
             if np.random.uniform() > prob:
                 next_img_list.append(img)
 
-            rect = gm.PixelRectangle.random_with_aspect(window_dims, imsize)
+            rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
             reg = utils.ImageRegion(rect, img_path)
             img_regions.append(reg)
 
@@ -372,21 +373,143 @@ def generate_negative_regions(bak_img_dir, neg_num, window_dims):
 
         # print '  Generated {} regions.'.format(len(img_regions))
 
-def test_random_with_aspect():
-    # Test random_with_aspect:
-    img_path = neg_regions[0].fname
-    img = cv2.imread(img_path)
+def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims):
+    print 'generate_negative_regions:'
+    all_images = utils.listImagesInDirectory(bak_img_dir)
+    if len(all_images) == 0:
+        raise ValueError('The given directory \'{}\' contains no images.'.format(bak_img_dir))
+    print '  Found {} images.'.format(len(all_images))
+
+    all_images = [img_path for img_path in all_images if not utils.info_entry_for_image(exl_info_map, img_path) is None]
+    print '  Found {} images with exclusion info.'.format(len(all_images))
+
+    image_list = all_images
+    random.shuffle(image_list)
+
+    while True:
+        for img_path in image_list:
+            with PIL.Image.open(img_path) as img:
+                imsize = img.size
+
+            excl_info = utils.info_entry_for_image(exl_info_map, img_path)
+            # print excl_info
+
+            # Only consider images with exclusions:
+            if excl_info is None:
+                continue
+
+            # Generate a region that does not intersect an exclusion region:
+            num_attempts = 100
+            for _ in xrange(num_attempts):
+                # print _
+                rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
+                if not any((rect.intersects_pixelrectangle(pr) for pr in excl_info)):
+                    reg = utils.ImageRegion(rect, img_path)
+                    yield reg
+                    break
+
+        # Shuffle the image list:
+        random.shuffle(image_list)
+
+def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, window_dims):
+    excl_info = utils.info_entry_for_image(exl_info_map, img_path)
+    # Only consider images with exclusions:
+    if excl_info is None:
+        return
+    with PIL.Image.open(img_path) as img:
+        imsize = img.size
+
+    img_w, img_h = imsize
+
+    aspect = window_dims[0] / float(window_dims[1])
+
+    scale_step = 1.25
+    window_step = 0.33333
+    max_scale = 0.5
+    min_w = 64
+    scale = min_w / float(img_w)
+
+    num_found = 0
+    while True:
+        w = int(round(img_w * scale))
+        h = int(round(img_w * scale / aspect))
+        sw = int(window_step*w)
+        sh = int(window_step*h)
+        print scale, (w, h), (sw, sh)
+
+        if scale > max_scale:
+            return
+        scale *= scale_step
+
+        count = 0
+        for x in xrange(0, img_w, sw):
+            for y in xrange(0, img_h, sh):
+                if x + w > img_w or y + h > img_h:
+                    break
+                rect = gm.PixelRectangle.from_opencv_bbox([x, y, w, h])
+
+                # Nudge rectangles to avoid exclusion regions:
+                intersecting = filter(rect.intersects_pixelrectangle, excl_info)
+                if len(intersecting) == 1:
+                    excl = intersecting[0]
+                    rect, offset = rect.moved_to_clear(excl, return_offset=True)
+                    if abs(offset[0]) >= sw or  abs(offset[1]) >= sh:
+                        continue
+                    rect = rect.translated((0,0), imsize)
+
+                # Ensure the rectangle does not intersect an exclusion region:
+                if not any((rect.intersects_pixelrectangle(pr) for pr in excl_info)):
+                    # Accept only rectangles that are close to exclusion regions:
+                    if any((rect.distance_pixelrectangle(pr) < w for pr in excl_info)):
+                        reg = utils.ImageRegion(rect, img_path)
+                        num_found += 1
+                        # import sys
+                        # sys.stdout.write(str(num_found) + ',')
+                        # sys.stdout.flush()
+                        yield reg
+                        count += 1
+        # print count
+
+def test_random_with_same_aspect():
+    # rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
+    # if not any((rect.intersects_pixelrectangle(pr) for pr in excl_info)):
+
+    # # Test random_with_same_aspect:
+    # img_path = neg_regions[0].fname
+    # img = cv2.imread(img_path)
+    window_dims = (300, 200)
+    img = np.zeros((500, 500, 3), np.uint8)
     h, w = img.shape[:2]
     imsize = (w, h)
     rects = []
     for i in range(10000):
-        rect = gm.PixelRectangle.random_with_aspect(window_dims, imsize)
+        rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
         rects.append(rect)
         clone = img.copy()
-        training.cvDrawRectangle(clone, rect, (255,0,0),2)
+        training.cvDrawRectangle(clone, rect, (255,0,0), 2)
+
+        # Test moved_to_clear:
+        new_rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
+        training.cvDrawRectangle(clone, new_rect, (0,255,0), 2)
+        moved_rect = new_rect.moved_to_clear(rect)
+        training.cvDrawRectangle(clone, moved_rect, (0,0,255), 2)
+        print rect.intersects_pixelrectangle(moved_rect)
+
+        # Test intersects_pixelrectangle:
+        # for i in range(200):
+        #     new_rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
+        #     col = (0, 0, 255) if rect.intersects_pixelrectangle(new_rect) else (255, 255, 255)
+        #     if not rect.intersects_pixelrectangle(new_rect):
+        #         training.cvDrawRectangle(clone, new_rect, col, 2)
+
         cv2.imshow('img', clone)
-        cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            # if key == 27: # ESC key
+            #     cv2.destroyAllWindows()
+            #     return
+            if key != 255:
+                break
 
     print 'Saving histogram...'
     from cardetection.carutils.plotting import saveHistogram
@@ -478,7 +601,7 @@ def create_or_load_descriptors(classifier_yaml, hog, window_dims):
         # if not os.path.isfile(pos_descriptor_file):
         # pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, 0.5*np.array(window_dims))
         pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, (48, 48))
-        view_image_regions(pos_reg_generator, window_dims, 3)
+        view_image_regions(pos_reg_generator, window_dims, display_scale=3)
         pos_regions = list(itertools.islice(pos_reg_generator, 0, req_pos_num))
         pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
         # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
@@ -522,6 +645,24 @@ if __name__ == '__main__':
 
     window_dims = tuple(map(int, classifier_yaml['training']['svm']['window_dims']))
     print 'window_dims:', window_dims
+
+    # test_random_with_same_aspect()
+
+    print 'Test negative generation:'
+    bak_img_dir = classifier_yaml['dataset']['directory']['background']
+    exl_info_map = utils.load_opencv_bounding_box_info('/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat')
+    neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
+    # all_images = utils.listImagesInDirectory(bak_img_dir)
+    # neg_reg_generator = generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
+    # mosaic_gen = utils.mosaic_generator(neg_reg_generator, (4, 6), (window_dims[1], window_dims[0]))
+    mosaic_gen = utils.mosaic_generator(neg_reg_generator, (20, 30), (40, 60))
+    for mosaic in mosaic_gen:
+        cv2.imshow('mosaic', mosaic)
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            if key != 255:
+                break
+    view_image_regions(neg_reg_generator, window_dims, display_scale=2)
 
     # Create the hog object with which to compute the descriptors:
     hog = get_hog_object(window_dims)

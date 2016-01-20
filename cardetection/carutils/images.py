@@ -1,7 +1,34 @@
+import os.path
 import glob
 import numpy as np
 import cv2
 import cardetection.carutils.geometry as gm
+
+# From: http://stackoverflow.com/a/312464
+# chunks :: [Int] -> [[Int]]
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
+# rectangles_from_cache_string :: String -> [gm.PixelRectangle]
+def rectangles_from_cache_string(rects_str):
+    num, unused_, objs_str = rects_str.partition(' ')
+
+    obj_floats = map(float, objs_str.split(' '))
+    # obj_rounded = map(round, obj_floats)
+    obj_rounded = map(int, obj_floats) # Note: Rounding can cause invalid bounding boxes.
+    obj_ints = map(int, obj_rounded)
+
+    objs = []
+    if int(num) > 0:
+        objs = list(chunks(obj_ints, 4))
+
+    rects = map(gm.PixelRectangle.from_opencv_bbox, objs)
+
+    assert len(rects) == int(num)
+    return rects
 
 def crop_rectangle(img, pixel_rect):
     cropped = img[pixel_rect.y1:pixel_rect.y2, pixel_rect.x1:pixel_rect.x2, :]
@@ -22,6 +49,32 @@ def save_opencv_bounding_box_info(bbinfo_file, bbinfo_map):
     # Write the bbinfo_lines to the bbinfo_file:
     with open(bbinfo_file, 'w') as fh:
         fh.write('\n'.join(bbinfo_lines))
+
+# load_info_file :: String -> Map String String
+def load_info_file(bbinfo_file):
+    bbinfo_cache = {}
+    with open(bbinfo_file, 'r') as dat_file:
+        for line in dat_file.readlines():
+            parts = line.strip().partition(' ')
+            _, image_path = os.path.split(parts[0])
+            details = parts[2]
+            bbinfo_cache[image_path] = details
+    return bbinfo_cache
+
+def info_entry_for_image(info_map, img_path):
+    _, key = os.path.split(img_path)
+
+    if not (key in info_map):
+        return None
+
+    return info_map[key]
+
+def load_opencv_bounding_box_info(bbinfo_file):
+    bbinfo_map = {}
+    bbinfo_cache = load_info_file(bbinfo_file)
+    for k in bbinfo_cache:
+        bbinfo_map[k] = rectangles_from_cache_string(bbinfo_cache[k])
+    return bbinfo_map
 
 def resize_sample(sample, shape, use_interp=True):
     # Use INTER_AREA for shrinking and INTER_LINEAR for enlarging:
@@ -103,6 +156,9 @@ class RegionModifiers(object):
             yield reg_mod
 
 
+# Cache used to prevent repeated reloading of images in load_cropped_sample.
+lcs_img_cache = {}
+lcs_img_cache_max_size = 20
 class ImageRegion(object):
     """ Describes a rectangular region of an image, and how to modify it to obtain a sample.
     """
@@ -117,7 +173,16 @@ class ImageRegion(object):
         if not modifiers:
             modifiers = self.modifiers
 
-        img = cv2.imread(self.fname)
+        # Prevent reloading the same images all the time:
+        global lcs_img_cache
+        if self.fname in lcs_img_cache:
+            img = lcs_img_cache[self.fname]
+        else:
+            img = cv2.imread(self.fname)
+            lcs_img_cache[self.fname] = img
+            if len(lcs_img_cache) > lcs_img_cache_max_size:
+                lcs_img_cache = {}
+
         if not modifiers:
             # If there are no modifiers, simply crop and return the sample:
             cropped = img[self.rect.y1:self.rect.y2, self.rect.x1:self.rect.x2, :]
@@ -266,3 +331,32 @@ def name_from_hog_descriptor(hog):
     from strutils import safe_name_from_info_dict
     info = get_hog_info_dict(hog)
     return safe_name_from_info_dict(info, 'hog_')
+
+def mosaic_generator(img_region_generator, mosaicShape, tileShape):
+    # Create a generator, in case we were passed a list:
+    img_region_generator = (i for i in img_region_generator)
+    imgShape = (mosaicShape[0] * tileShape[0], mosaicShape[1] * tileShape[1])
+    numTiles = mosaicShape[0]*mosaicShape[1]
+
+    while True:
+        mosaic_img = np.zeros((imgShape[0],imgShape[1],3), np.uint8)
+        # avg_img = np.zeros((imgShape[0],imgShape[1]), np.float32)
+
+        for r in range(mosaicShape[0]):
+            for c in range(mosaicShape[1]):
+                try:
+                    img_region = img_region_generator.next()
+                except StopIteration:
+                    yield mosaic_img
+                    return
+
+                sample = img_region.load_cropped_sample()
+                resized = resize_sample(sample, tileShape, use_interp=False)
+
+                trs = tileShape[0]
+                tcs = tileShape[1]
+                tr = r * trs
+                tc = c * tcs
+                mosaic_img[tr:tr+trs, tc:tc+tcs] = resized
+
+        yield mosaic_img
