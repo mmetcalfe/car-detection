@@ -103,18 +103,21 @@ dataset:
 
         # Rotation range is [-max_rotation_degrees, max_rotation_degrees]:
         # max_rotation_degrees: '8.0'
+        # max_rotation_degrees: '8.0'
         max_rotation_degrees: '0.0'
 
         # Max translation in each dimension as a fraction of sample size:
-        max_trans_frac: ['0.05', '0.05']
+        # max_trans_frac: ['0.05', '0.05']
+        max_trans_frac: ['0.0', '0.0']
 
         # Range of allowable scale factors (about the centre of the sample):
-        scale_range: ['0.9', '1.2']
+        # scale_range: ['0.95', '1.2']
+        scale_range: ['1.0', '1.0']
 
         # Use different random scaling factors for both the x and y axes,
         # allowing the aspect ratio to change:
         # scale_axes_independently: True # True or False
-        scale_axes_independently: False # True or False
+        scale_axes_independently: True # True or False
 training:
     # Parameters for training a basic HOG + Linear SVM classifier:
     svm:

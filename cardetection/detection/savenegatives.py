@@ -32,10 +32,10 @@ if __name__ == '__main__':
     print 'Test negative generation:'
     bak_img_dir = classifier_yaml['dataset']['directory']['background']
     exl_info_map = utils.load_opencv_bounding_box_info('/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat')
-    # neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
+    neg_reg_generator = trainhog.generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, classifier_yaml['dataset']['modifiers'])
     all_images = utils.listImagesInDirectory(bak_img_dir)
-    neg_reg_generator = trainhog.generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
-    print len(list(neg_reg_generator))
+    # neg_reg_generator = trainhog.generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
+    # print len(list(neg_reg_generator))
     mosaic_gen = utils.mosaic_generator(neg_reg_generator, (20, 30), (40, 60))
     for mosaic in mosaic_gen:
         print 'mosaic'

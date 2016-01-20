@@ -5,7 +5,6 @@ import yaml
 import itertools
 import numpy as np
 import cv2
-import PIL.Image
 import cascadetraining as training
 import cardetection.carutils.images as utils
 import cardetection.carutils.strutils as strutils
@@ -283,22 +282,20 @@ def view_image_regions(region_generator, dimensions, display_scale):
                 break
 
 # generate_positive_regions :: String -> Map String ??? -> String -> (Int, Int) -> generator(ImageRegion)
-def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, min_size):
+def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, window_dims=None, min_size=(48,48)):
     print 'generate_positive_regions:'
-    filtered_image_list = utils.listImagesInDirectory(image_dir)
+    all_images = utils.listImagesInDirectory(image_dir)
 
     modifier_generator = utils.RegionModifiers.random_generator_from_config_dict(modifiers_config)
 
     # Filter out images without bounding boxes:
-    global_info = training.loadGlobalInfo(bbinfo_dir)
-    bbox_filter = lambda img_path: os.path.split(img_path)[1] in global_info
-    source_images = filter(bbox_filter, filtered_image_list)
+    bbinfo_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='bbinfo')
+    source_images = [img_path for img_path in all_images if not utils.info_entry_for_image(bbinfo_map, img_path) is None]
 
     # Extract image regions:
     source_regions = []
     for img_path in source_images:
-        key = os.path.split(img_path)[1]
-        rects = utils.rectangles_from_cache_string(global_info[key])
+        rects = utils.info_entry_for_image(bbinfo_map, img_path)
         for rect in rects:
             # Reject small samples:
             if rect.w < float(min_size[0]) or rect.h < float(min_size[1]):
@@ -318,8 +315,20 @@ def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, min_size)
         for reg in source_regions:
             mod = modifier_generator.next()
 
+            # Enlarge to correct aspect ratio:
+            new_rect = reg.rect
+            if window_dims:
+                aspect = window_dims[0] / float(window_dims[1])
+                new_rect = new_rect.enlarge_to_aspect(aspect)
+                imsize = utils.get_image_dimensions(reg.fname)
+                if not new_rect.lies_within_frame(imsize):
+                    print 'bad', new_rect
+                    continue
+                else:
+                    print new_rect
+
             # Assign a random modifier, and yield the region:
-            new_reg = utils.ImageRegion(reg.rect, reg.fname, mod)
+            new_reg = utils.ImageRegion(new_rect, reg.fname, mod)
             yield new_reg
 
 def generate_negative_regions(bak_img_dir, neg_num, window_dims):
@@ -339,8 +348,7 @@ def generate_negative_regions(bak_img_dir, neg_num, window_dims):
     while True:
         next_img_list = []
         for img_path in image_list:
-            with PIL.Image.open(img_path) as img:
-                imsize = img.size
+            imsize = utils.get_image_dimensions(img_path)
 
             # Reject small regions:
             w, h = imsize
@@ -373,7 +381,7 @@ def generate_negative_regions(bak_img_dir, neg_num, window_dims):
 
         # print '  Generated {} regions.'.format(len(img_regions))
 
-def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims):
+def generate_random_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims):
     print 'generate_negative_regions:'
     all_images = utils.listImagesInDirectory(bak_img_dir)
     if len(all_images) == 0:
@@ -388,8 +396,7 @@ def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_
 
     while True:
         for img_path in image_list:
-            with PIL.Image.open(img_path) as img:
-                imsize = img.size
+            imsize = utils.get_image_dimensions(img_path)
 
             excl_info = utils.info_entry_for_image(exl_info_map, img_path)
             # print excl_info
@@ -411,23 +418,61 @@ def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_
         # Shuffle the image list:
         random.shuffle(image_list)
 
+def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, modifiers_config=None):
+    print 'generate_negative_regions_with_exclusions:'
+    all_images = utils.listImagesInDirectory(bak_img_dir)
+    if len(all_images) == 0:
+        raise ValueError('The given directory \'{}\' contains no images.'.format(bak_img_dir))
+    print '  Found {} images.'.format(len(all_images))
+
+    all_images = [img_path for img_path in all_images if not utils.info_entry_for_image(exl_info_map, img_path) is None]
+    print '  Found {} images with exclusion info.'.format(len(all_images))
+
+    image_list = all_images
+    random.shuffle(image_list)
+
+    modifier_generator = itertools.repeat(utils.RegionModifiers())
+    if modifiers_config:
+        modifier_generator = utils.RegionModifiers.random_generator_from_config_dict(modifiers_config)
+
+    while True:
+        for img_path in image_list:
+            imsize = utils.get_image_dimensions(img_path)
+
+            for reg in generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, window_dims):
+                mod = modifier_generator.next()
+
+                # Assign a random modifier, and yield the region:
+                new_reg = utils.ImageRegion(reg.rect, reg.fname, mod)
+                yield new_reg
+
+        # Shuffle the image list:
+        random.shuffle(image_list)
+
 def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, window_dims):
     excl_info = utils.info_entry_for_image(exl_info_map, img_path)
     # Only consider images with exclusions:
     if excl_info is None:
         return
-    with PIL.Image.open(img_path) as img:
-        imsize = img.size
+    imsize = utils.get_image_dimensions(img_path)
 
     img_w, img_h = imsize
 
     aspect = window_dims[0] / float(window_dims[1])
 
     scale_step = 1.25
-    window_step = 0.33333
+    window_step = 0.5
     max_scale = 0.5
     min_w = 64
-    scale = min_w / float(img_w)
+    min_scale = min_w / float(img_w)
+    scale = min_scale
+
+    def accept_sample(curr_scale):
+        f = (curr_scale - min_scale) / (max_scale - min_scale)
+        min_prob = 0.3**0.5
+        max_prob = 1.0
+        prob = min_prob*(1-f) + max_prob*(f)
+        return np.random.uniform() < prob*prob
 
     num_found = 0
     while True:
@@ -446,6 +491,11 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
             for y in xrange(0, img_h, sh):
                 if x + w > img_w or y + h > img_h:
                     break
+
+                # Randomly reject samples based on scale:
+                if not accept_sample(scale):
+                    continue
+
                 rect = gm.PixelRectangle.from_opencv_bbox([x, y, w, h])
 
                 # Nudge rectangles to avoid exclusion regions:
@@ -468,7 +518,7 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
                         # sys.stdout.flush()
                         yield reg
                         count += 1
-        # print count
+        print count
 
 def test_random_with_same_aspect():
     # rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
@@ -600,7 +650,7 @@ def create_or_load_descriptors(classifier_yaml, hog, window_dims):
     if req_pos_num > 0:
         # if not os.path.isfile(pos_descriptor_file):
         # pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, 0.5*np.array(window_dims))
-        pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, (48, 48))
+        pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, window_dims)
         view_image_regions(pos_reg_generator, window_dims, display_scale=3)
         pos_regions = list(itertools.islice(pos_reg_generator, 0, req_pos_num))
         pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
@@ -650,12 +700,17 @@ if __name__ == '__main__':
 
     print 'Test negative generation:'
     bak_img_dir = classifier_yaml['dataset']['directory']['background']
+    pos_img_dir = classifier_yaml['dataset']['directory']['positive']
+    bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
     exl_info_map = utils.load_opencv_bounding_box_info('/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat')
-    neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
+    pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, window_dims)
+    # neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
     # all_images = utils.listImagesInDirectory(bak_img_dir)
     # neg_reg_generator = generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
-    # mosaic_gen = utils.mosaic_generator(neg_reg_generator, (4, 6), (window_dims[1], window_dims[0]))
-    mosaic_gen = utils.mosaic_generator(neg_reg_generator, (20, 30), (40, 60))
+    mosaic_gen = utils.mosaic_generator(pos_reg_generator, (4, 6), (window_dims[1], window_dims[0]))
+    # mosaic_gen = utils.mosaic_generator(neg_reg_generator, (20, 30), (40, 60))
+    # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))
+    # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))
     for mosaic in mosaic_gen:
         cv2.imshow('mosaic', mosaic)
         while True:

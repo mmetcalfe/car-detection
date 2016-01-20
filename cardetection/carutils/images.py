@@ -2,7 +2,22 @@ import os.path
 import glob
 import numpy as np
 import cv2
+import PIL.Image
 import cardetection.carutils.geometry as gm
+
+gid_cache = {}
+gid_cache_max_size = 500
+def get_image_dimensions(img_path):
+    global gid_cache
+    if img_path in gid_cache:
+        return gid_cache[img_path]
+    else:
+        with PIL.Image.open(img_path) as img:
+            imsize = img.size
+        gid_cache[img_path] = imsize
+        if len(gid_cache) > gid_cache_max_size:
+            gid_cache = {}
+        return imsize
 
 # From: http://stackoverflow.com/a/312464
 # chunks :: [Int] -> [[Int]]
@@ -75,6 +90,15 @@ def load_opencv_bounding_box_info(bbinfo_file):
     for k in bbinfo_cache:
         bbinfo_map[k] = rectangles_from_cache_string(bbinfo_cache[k])
     return bbinfo_map
+
+# load_opencv_bounding_box_info_directory :: String -> Map String String
+def load_opencv_bounding_box_info_directory(bbinfo_dir, prefix='*', suffix='*'):
+    global_info = {}
+    cache_files = glob.glob("{}/{}__{}.dat".format(bbinfo_dir, prefix, suffix))
+    for cache_file_name in cache_files:
+        info_cache = load_opencv_bounding_box_info(cache_file_name)
+        global_info.update(info_cache)
+    return global_info
 
 def resize_sample(sample, shape, use_interp=True):
     # Use INTER_AREA for shrinking and INTER_LINEAR for enlarging:

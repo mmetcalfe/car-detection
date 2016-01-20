@@ -384,6 +384,44 @@ class PixelRectangle(np.ndarray):
 
         return PixelRectangle.fromCoords(x1, y1, x2, y2)
 
+    # Returns whether this rectangle is completely contained within an image
+    # frame of the given dimensions.
+    #
+    # PixelRectangle.lies_within_frame :: (Float, Float) -> Bool
+    def lies_within_frame(self, dimensions):
+        if self.x1 < 0 or self.y1 < 0:
+            return False
+        if self.x2 > dimensions[0] or self.y2 > dimensions[1]:
+            return False
+        return True
+
+    # Return this rectangle with its width or height increased such that its
+    # aspect ratio matches the given aspect ratio.
+    #
+    # If the scaling casuses part of the rectangle to leave the image
+    # boundaries, the rectangle is translated back into the image boundaries.
+    #
+    # PixelRectangle.enlarge_to_aspect :: Float -> PixelRectangle
+    def enlarge_to_aspect(self, new_aspect):
+        new_aspect = float(new_aspect)
+        aspect = self.w / float(self.h)
+
+        # New dimensions from aspect ratio:
+        w, h = self.w, self.h
+        if new_aspect >= aspect:
+            w = int(np.round(self.h * new_aspect))
+        else:
+            h = int(np.round(self.w / new_aspect))
+
+        # Old centre:
+        cx, cy = self.exact_centre
+        # New corner from centre and new width:
+        x = int(np.round(cx - (w - 1) / 2.0))
+        y = int(np.round(cy - (h - 1) / 2.0))
+        new_rect = PixelRectangle.from_opencv_bbox([x, y, w, h])
+
+        return new_rect
+
     # Return this rectangle with its width and height scaled by the scale
     # factors, and placed such that its centre is as close as possible to its
     # original location.
