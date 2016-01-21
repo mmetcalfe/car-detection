@@ -71,6 +71,10 @@ def get_svm_detector(svm_file_path):
     svm_detector[:-1] = stacked_vecs
     svm_detector[-1] = float(-rho)
 
+    print 'stacked_vecs', stacked_vecs
+    print 'rho', rho
+    print 'stacked_vecs.shape', stacked_vecs.shape
+
     return svm_detector
 
 def get_hog_object(window_dims):
@@ -94,7 +98,7 @@ def compute_hog_descriptors(hog, image_regions, window_dims, label):
 
     progressbar = ProgressBar('Computing descriptors', max=len(image_regions))
     reg_descriptors = []
-    for reg in image_regions: # TODO: Should only load each image once.
+    for reg in image_regions:
         progressbar.next()
         img = reg.load_cropped_resized_sample(window_dims)
 
@@ -147,8 +151,8 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
     #  Set the trained svm to my_hog
     hog_detector = get_svm_detector(svm_file_path)
     hog = get_hog_object(window_dims)
-    print len(hog_detector)
-    print hog.getDescriptorSize()
+    print 'len(hog_detector)', len(hog_detector)
+    print 'hog.getDescriptorSize()', hog.getDescriptorSize()
     hog.setSVMDetector(hog_detector)
     print '...[done]'
 
@@ -158,13 +162,13 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
         # results_dir = '{}/{}_results'.format(output_dir, test_source_name)
         # detections_fname = '{}/{}_detections.dat'.format(output_dir, test_source_name)
 
-        img_list = sorted(training.listImagesInDirectory(test_dir))
+        img_list = sorted(utils.listImagesInDirectory(test_dir))
 
         for img_path in img_list:
             img = cv2.imread(img_path)
 
             h, w = img.shape[:2]
-            max_dim = 800.0
+            max_dim = 1200.0
             # if w > max_dim + 50 or h > max_dim + 50:
             if abs(w - max_dim) > 50 or abs(h - max_dim) > 50:
                 sx = max_dim / w
@@ -201,7 +205,6 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
 
             print img_path, len(cars)
             if len(cars) > 0:
-                print cars
                 for (x,y,w,h) in cars:
                     # img = cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
                     lw = max(2, min(img.shape[0], img.shape[1]) / 150)
@@ -282,11 +285,15 @@ def view_image_regions(region_generator, dimensions, display_scale):
                 break
 
 # generate_positive_regions :: String -> Map String ??? -> String -> (Int, Int) -> generator(ImageRegion)
-def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, window_dims=None, min_size=(48,48)):
+def generate_positive_regions(image_dir, bbinfo_dir, modifiers_config=None, window_dims=None, min_size=(48,48)):
     print 'generate_positive_regions:'
     all_images = utils.listImagesInDirectory(image_dir)
 
-    modifier_generator = utils.RegionModifiers.random_generator_from_config_dict(modifiers_config)
+    # Create the modifier generator:
+    # Note: Simply generate null modifiers if no modifier config is passed.
+    modifier_generator = itertools.repeat(utils.RegionModifiers())
+    if modifiers_config:
+        modifier_generator = utils.RegionModifiers.random_generator_from_config_dict(modifiers_config)
 
     # Filter out images without bounding boxes:
     bbinfo_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='bbinfo')
@@ -309,7 +316,9 @@ def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, window_di
     # Generate an infinite list of samples:
     while True:
         # Randomise the order of source images:
-        random.shuffle(source_regions)
+        # Note: Don't randomise if no modifiers are used.
+        if modifiers_config:
+            random.shuffle(source_regions)
 
         # For each source region:
         for reg in source_regions:
@@ -322,14 +331,19 @@ def generate_positive_regions(image_dir, modifiers_config, bbinfo_dir, window_di
                 new_rect = new_rect.enlarge_to_aspect(aspect)
                 imsize = utils.get_image_dimensions(reg.fname)
                 if not new_rect.lies_within_frame(imsize):
-                    print 'bad', new_rect
+                    # print 'bad', new_rect
                     continue
-                else:
-                    print new_rect
+                # else:
+                #     print new_rect
 
             # Assign a random modifier, and yield the region:
             new_reg = utils.ImageRegion(new_rect, reg.fname, mod)
             yield new_reg
+
+        # If we're not using modifiers, only use each region once:
+        if not modifiers_config:
+            break
+
 
 def generate_negative_regions(bak_img_dir, neg_num, window_dims):
     print 'generate_negative_regions:'
@@ -518,7 +532,7 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
                         # sys.stdout.flush()
                         yield reg
                         count += 1
-        print count
+        # print count
 
 def test_random_with_same_aspect():
     # rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize)
@@ -649,9 +663,9 @@ def create_or_load_descriptors(classifier_yaml, hog, window_dims):
     print 'req_pos_num:', req_pos_num
     if req_pos_num > 0:
         # if not os.path.isfile(pos_descriptor_file):
-        # pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, 0.5*np.array(window_dims))
-        pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, window_dims)
-        view_image_regions(pos_reg_generator, window_dims, display_scale=3)
+        # pos_reg_generator = generate_positive_regions(pos_img_dir, bbinfo_dir, classifier_yaml['dataset']['modifiers'], 0.5*np.array(window_dims))
+        pos_reg_generator = generate_positive_regions(pos_img_dir, bbinfo_dir, classifier_yaml['dataset']['modifiers'], window_dims)
+        # view_image_regions(pos_reg_generator, window_dims, display_scale=3)
         pos_regions = list(itertools.islice(pos_reg_generator, 0, req_pos_num))
         pos_reg_descriptors = compute_hog_descriptors(hog, pos_regions, window_dims, 1)
         # save_region_descriptors(hog, pos_regions, pos_descriptors, 'pos_descriptors')
@@ -664,7 +678,10 @@ def create_or_load_descriptors(classifier_yaml, hog, window_dims):
     print 'req_neg_num:', req_neg_num
     if req_neg_num > 0:
         # if not os.path.isfile(neg_descriptor_file):
-        neg_regions = generate_negative_regions(bak_img_dir, req_neg_num, window_dims)
+        # neg_regions = generate_negative_regions(bak_img_dir, req_neg_num, window_dims)
+        exl_info_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='exclusion')
+        neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, classifier_yaml['dataset']['modifiers'])
+        neg_regions = list(itertools.islice(neg_reg_generator, 0, req_neg_num))
         neg_reg_descriptors = compute_hog_descriptors(hog, neg_regions, window_dims, -1)
         # save_region_descriptors(hog, neg_regions, neg_descriptors, 'neg_descriptors')
         store.save_region_descriptors(neg_reg_descriptors, hog)
@@ -697,27 +714,25 @@ if __name__ == '__main__':
     print 'window_dims:', window_dims
 
     # test_random_with_same_aspect()
-
-    print 'Test negative generation:'
-    bak_img_dir = classifier_yaml['dataset']['directory']['background']
-    pos_img_dir = classifier_yaml['dataset']['directory']['positive']
-    bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
-    exl_info_map = utils.load_opencv_bounding_box_info('/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat')
-    pos_reg_generator = generate_positive_regions(pos_img_dir, classifier_yaml['dataset']['modifiers'], bbinfo_dir, window_dims)
-    # neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
-    # all_images = utils.listImagesInDirectory(bak_img_dir)
-    # neg_reg_generator = generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
-    mosaic_gen = utils.mosaic_generator(pos_reg_generator, (4, 6), (window_dims[1], window_dims[0]))
-    # mosaic_gen = utils.mosaic_generator(neg_reg_generator, (20, 30), (40, 60))
-    # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))
-    # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))
-    for mosaic in mosaic_gen:
-        cv2.imshow('mosaic', mosaic)
-        while True:
-            key = cv2.waitKey(1) & 0xFF
-            if key != 255:
-                break
-    view_image_regions(neg_reg_generator, window_dims, display_scale=2)
+    #
+    # print 'Test negative generation:'
+    # bak_img_dir = classifier_yaml['dataset']['directory']['background']
+    # pos_img_dir = classifier_yaml['dataset']['directory']['positive']
+    # bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
+    # exl_info_map = utils.load_opencv_bounding_box_info('/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat')
+    # pos_reg_generator = generate_positive_regions(pos_img_dir, bbinfo_dir, classifier_yaml['dataset']['modifiers'], window_dims)
+    # # neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
+    # # all_images = utils.listImagesInDirectory(bak_img_dir)
+    # # neg_reg_generator = generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
+    # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (4, 6), (window_dims[1], window_dims[0]))
+    # # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))
+    # for mosaic in mosaic_gen:
+    #     cv2.imshow('mosaic', mosaic)
+    #     while True:
+    #         key = cv2.waitKey(1) & 0xFF
+    #         if key != 255:
+    #             break
+    # view_image_regions(neg_reg_generator, window_dims, display_scale=2)
 
     # Create the hog object with which to compute the descriptors:
     hog = get_hog_object(window_dims)

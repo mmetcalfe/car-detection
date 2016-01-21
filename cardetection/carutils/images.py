@@ -384,3 +384,48 @@ def mosaic_generator(img_region_generator, mosaicShape, tileShape):
                 mosaic_img[tr:tr+trs, tc:tc+tcs] = resized
 
         yield mosaic_img
+
+# From: http://www.pyimagesearch.com/2015/04/06/zero-parameter-automatic-canny-edge-detection-with-python-and-opencv/
+def auto_canny(image, sigma=0.33):
+    # compute the median of the single channel pixel intensities
+    v = np.median(image)
+
+    # apply automatic Canny edge detection using the computed median
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+    edged = cv2.Canny(image, lower, upper)
+
+    # return the edged image
+    return edged
+
+from progress.bar import Bar as ProgressBar
+def average_image(pos_region_generator, shape, avg_num=None):
+    pos_regions = list(pos_region_generator)
+
+    num_images = float(len(pos_regions))
+    if avg_num is None:
+        avg_num = num_images
+    else:
+        avg_num = min(avg_num, num_images)
+
+    window_dims = (shape[1], shape[0])
+
+    # avg_img = np.zeros((shape[0],shape[1],3), np.float32)
+    avg_img = np.zeros(shape, np.float32)
+    progressbar = ProgressBar('Averaging ', max=avg_num)
+    num = 0
+    for reg in pos_regions:
+        if num >= avg_num:
+            break
+        num += 1
+        progressbar.next()
+
+        resized = reg.load_cropped_resized_sample(window_dims)
+
+        resized = auto_canny(resized)
+        resized = np.float32(resized)
+
+        avg_img = cv2.add(avg_img, resized / float(avg_num))
+    progressbar.finish()
+
+    return avg_img

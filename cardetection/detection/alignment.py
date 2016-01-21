@@ -248,3 +248,31 @@ def find_label_clusters(kitti_base, kittiLabels, shape, num_clusters, descriptor
     # plt.scatter(center[:,0],center[:,1],s = 80,c = 'y', marker = 's')
     # plt.xlabel('Height'),plt.ylabel('Weight')
     # plt.show()
+
+import cardetection.detection.trainhog as trainhog
+def find_sample_clusters(pos_reg_generator, window_dims, hog, num_clusters):
+    regions = list(pos_reg_generator)
+    descriptors = trainhog.compute_hog_descriptors(hog, regions, window_dims, 1)
+
+    # convert to np.float32
+    descriptors = [rd.descriptor for rd in descriptors]
+    Z = np.float32(descriptors)
+
+    # define criteria and apply kmeans()
+    K = num_clusters
+    print 'find_label_clusters,', 'kmeans:', K
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    attempts = 10
+    ret,label,center=cv2.kmeans(Z,K,None,criteria,attempts,cv2.KMEANS_RANDOM_CENTERS)
+    # ret,label,center=cv2.kmeans(Z,2,criteria,attempts,cv2.KMEANS_PP_CENTERS)
+
+    print 'ret:', ret
+    # print 'label:', label
+    # print 'center:', center
+
+    # # Now separate the data, Note the flatten()
+    # A = Z[label.ravel()==0]
+    # B = Z[label.ravel()==1]
+
+    clusters = partition(regions, label)
+    return clusters

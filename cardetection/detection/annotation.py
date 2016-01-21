@@ -84,6 +84,13 @@ class OpenCVAnnotator(object):
 
         return self.bbinfo_map[key]
 
+    def get_annotation_count(self):
+        total = 0
+        for img_path, bboxes in self.bbinfo_map.iteritems():
+            num = len(bboxes)
+            total += num
+        return total
+
     # Annotate all images in the directory:
     def annotate_directory(self, img_dir, bbinfo_file):
         # Get sorted image list:
@@ -173,7 +180,7 @@ class OpenCVAnnotator(object):
                     rect = gm.PixelRectangle.fromCorners(self.rect_tl, self.rect_br)
                     if rect.w > 10 and rect.h > 10:
                         self.add_rectangle_to_image(self.current_path, rect)
-                        print 'Bounding box added'
+                        print 'Bounding box {} added.'.format(self.get_annotation_count())
                         self.editing = False
                         self.rect_tl = None
                         self.rect_br = None
@@ -215,7 +222,7 @@ class OpenCVAnnotator(object):
 
     def update_display(self):
         h, w = self.current_img.shape[:2]
-        max_dim = 1500.0
+        max_dim = 2500.0
         if w > max_dim + 50 or h > max_dim + 50:
             sx = max_dim / w
             sy = max_dim / h
@@ -265,9 +272,12 @@ class OpenCVAnnotator(object):
         cv2.destroyWindow(self.winName)
 
 if __name__ == '__main__':
-    img_dir = '/Users/mitchell/data/car-detection/shopping'
-    # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__bbinfo.dat'
-    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat'
+    img_dir = '/Users/mitchell/data/car-detection/university'
+    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__bbinfo.dat'
+    # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__exclusion.dat'
+
+    # img_dir = '/Users/mitchell/data/car-detection/shopping'
+    # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat'
     print bbinfo_file
 
     annotator = OpenCVAnnotator()
