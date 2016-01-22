@@ -71,8 +71,8 @@ dataset:
         # # bbinfo: /Users/mitchell/data/car-detection/bbinfo
         # # positive: /Users/mitchell/data/car-detection/shopping
         #
-        # background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
-        # negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
+        background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
+        negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
 
         # bbinfo: /Users/mitchell/data/synthetic/bbinfo
         # positive: /Users/mitchell/data/synthetic/positive
@@ -81,7 +81,7 @@ dataset:
         bbinfo: /Users/mitchell/data/car-detection/bbinfo
         positive: /Users/mitchell/data/car-detection/university
         # positive: /Users/mitchell/data/car-detection/shopping
-        background: /Users/mitchell/data/car-detection/shopping
+        # background: /Users/mitchell/data/car-detection/shopping
 
         # Base directory when generating a dataset using syntheticdataset.py
         synthetic: /Users/mitchell/data/synthetic
@@ -151,7 +151,7 @@ training:
         # pos_num: '100000'
         # neg_num: '200000'
 
-        pos_num: '15000'
+        pos_num: '5000'
         neg_num: '50000'
 
         # Number of rounds of hard-negative mining to perform
@@ -161,9 +161,9 @@ training:
         mining_increase_frac: '0.2'
     basic:
         data: classifiers
-        numStages: '17' # <number_of_stages = 20>]
-        numPos: '5500' # Number of positive samples used to train each stage of the classifier.
-        numNeg: '30000' # Number of negative samples used to train each stage of the classifier.
+        numStages: '10' # <number_of_stages = 20>]
+        numPos: '500' # Number of positive samples used to train each stage of the classifier.
+        numNeg: '2000' # Number of negative samples used to train each stage of the classifier.
         # numPos: '2000' # Number of positive samples used to train each stage of the classifier.
         # numNeg: '10000' # Number of negative samples used to train each stage of the classifier.
     cascade:

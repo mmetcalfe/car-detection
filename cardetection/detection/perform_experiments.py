@@ -90,12 +90,12 @@ if __name__ == "__main__":
 
 	trial_files = glob.glob("{}/*.yaml".format(args.output_dir))
 
-	print '===== VIEW SAMPLES ====='
-	print 'Note: Comment out this section if you actually want to train anything.'
-	for trial_yaml in trial_files:
-		classifier_yaml = training.loadYamlFile(trial_yaml)
-		output_dir = trial_yaml.split('.yaml')[0]
-		training.viewPositiveSamples(classifier_yaml, output_dir)
+	# print '===== VIEW SAMPLES ====='
+	# print 'Note: Comment out this section if you actually want to train anything.'
+	# for trial_yaml in trial_files:
+	# 	classifier_yaml = training.loadYamlFile(trial_yaml)
+	# 	output_dir = trial_yaml.split('.yaml')[0]
+	# 	training.view_positive_samples(classifier_yaml, output_dir)
 
 	print '===== PREPROCESS TRIALS ====='
 
@@ -130,9 +130,10 @@ if __name__ == "__main__":
 		classifier_yaml = training.loadYamlFile(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
 		trained_classifier_xml = '{}/data/cascade.xml'.format(output_dir)
+		params_xml = '{}/data/params.xml'.format(output_dir)
 
-		if os.path.isfile(trained_classifier_xml):
-			print '    Classifier already trained: {}'.format(trained_classifier_xml)
+		if os.path.isfile(params_xml):
+			print '    Classifier training has begun: {}'.format(trained_classifier_xml)
 		else:
 			print '    Creating samples for: {}'.format(trial_yaml)
 			training.createSamples(classifier_yaml, output_dir)
@@ -146,15 +147,17 @@ if __name__ == "__main__":
 		output_dir = fname.split('.yaml')[0]
 		training.trainClassifier(classifier_yaml, output_dir)
 
-	with futures.ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
-		future_results = dict((executor.submit(doTraining, fname), fname) for fname in trial_files)
-
-		for future in futures.as_completed(future_results):
-			fname = future_results[future]
-			if future.exception() is not None:
-				print '{} generated an exception: {}'.format(fname, future.exception())
-			else:
-				print '{} completed training successfully'.format(fname)
+	for fname in trial_files:
+		doTraining(fname)
+	# with futures.ThreadPoolExecutor(max_workers=NUM_THREADS) as executor:
+	# 	future_results = dict((executor.submit(doTraining, fname), fname) for fname in trial_files)
+	#
+	# 	for future in futures.as_completed(future_results):
+	# 		fname = future_results[future]
+	# 		if future.exception() is not None:
+	# 			print '{} generated an exception: {}'.format(fname, future.exception())
+	# 		else:
+	# 			print '{} completed training successfully'.format(fname)
 
 
 	# # TODO: Scan output files for possible errors.

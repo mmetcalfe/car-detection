@@ -481,12 +481,21 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
     min_scale = min_w / float(img_w)
     scale = min_scale
 
+    # Used to probabilistically reject a fraction of samples at each scale
+    # level. This decreases the difference in the number of samples selected
+    # from each scale level (otherwise, small scale levels would contain an
+    # overwhelmingly large number of sample windows).
     def accept_sample(curr_scale):
         f = (curr_scale - min_scale) / (max_scale - min_scale)
         min_prob = 0.3**0.5
         max_prob = 1.0
         prob = min_prob*(1-f) + max_prob*(f)
         return np.random.uniform() < prob*prob
+
+    # Probability of rejecting samples that are not close to exclusion regions.
+    # (Most images have large portions of sky and ground, and this prevents
+    # oversampling those areas)
+    far_reject_prob = 0.75
 
     num_found = 0
     while True:
@@ -523,15 +532,22 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
 
                 # Ensure the rectangle does not intersect an exclusion region:
                 if not any((rect.intersects_pixelrectangle(pr) for pr in excl_info)):
-                    # Accept only rectangles that are close to exclusion regions:
-                    if any((rect.distance_pixelrectangle(pr) < w for pr in excl_info)):
-                        reg = utils.ImageRegion(rect, img_path)
-                        num_found += 1
-                        # import sys
-                        # sys.stdout.write(str(num_found) + ',')
-                        # sys.stdout.flush()
-                        yield reg
-                        count += 1
+                    # Determing whether the rectangle is close to an exclusion
+                    # region:
+                    is_close_to_exclusion = any((rect.distance_pixelrectangle(pr) < w for pr in excl_info))
+
+                    # Prefer rectangles that are close to exclusion regions:
+                    if not is_close_to_exclusion:
+                        if np.random.uniform() < far_reject_prob:
+                            continue
+
+                    reg = utils.ImageRegion(rect, img_path)
+                    num_found += 1
+                    # import sys
+                    # sys.stdout.write(str(num_found) + ',')
+                    # sys.stdout.flush()
+                    yield reg
+                    count += 1
         # print count
 
 def test_random_with_same_aspect():

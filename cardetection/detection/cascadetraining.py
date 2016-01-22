@@ -1,6 +1,7 @@
 import urllib2
 import tarfile
 from PIL import Image
+import string
 import io
 import os.path
 import yaml
@@ -14,6 +15,7 @@ from pprint import pprint
 
 import cardetection.carutils.geometry as gm
 import cardetection.carutils.images as utils
+import cardetection.carutils.fileutils as fileutils
 
 class TooFewImagesError(Exception):
     def __init__(self, presentCounts, requiredCounts):
@@ -87,7 +89,8 @@ def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, 
 
     # If bounding boxes are required, filter out images without bounding boxes:
     if require_bboxes:
-        global_info = loadGlobalInfo(bbinfo_dir)
+        global_info = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='bbinfo')
+        # global_info = loadGlobalInfo(bbinfo_dir)
         bbox_filter = lambda img_path: os.path.split(img_path)[1] in global_info
         filtered_image_list = filter(bbox_filter, filtered_image_list)
 
@@ -102,7 +105,8 @@ def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, 
 
 # checkBoundingBoxes :: [String] -> String -> IO ()
 def checkBoundingBoxes(img_paths, bbinfo_dir):
-    global_info = loadGlobalInfo(bbinfo_dir)
+    global_info = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='bbinfo')
+    # global_info = loadGlobalInfo(bbinfo_dir)
 
     error_occurred = False
     bad_images = []
@@ -119,23 +123,13 @@ def checkBoundingBoxes(img_paths, bbinfo_dir):
             continue
 
         # Get bounding box:
-        key = img_path.split('/')[-1]
-        rects_str = global_info[key]
-        rects = utils.rectangles_from_cache_string(rects_str)
+        rects = utils.info_entry_for_image(global_info, img_path)
         for rect in rects:
-            lf = rect.x < 0
-            tf = rect.y < 0
-            rf = rect.x + rect.w > imsize[0]
-            bf = rect.y + rect.h > imsize[1]
-            sf = rect.w < 1 or rect.h < 1
+            if not rect.touches_frame_edge(imsize):
+                warn_images.append((img_path, rect, imsize))
 
-            extent = (rect.x + rect.w, rect.y + rect.h)
-
-            if rect.x + rect.w == imsize[0] or rect.y + rect.h == imsize[1]:
-                warn_images.append((img_path, rect, extent, imsize))
-
-            if lf or tf or rf or bf or sf:
-                bad_images.append((img_path, rect, extent, imsize))
+            if not rect.lies_within_frame(imsize):
+                bad_images.append((img_path, rect, imsize))
 
     if warn_images:
         print """
@@ -198,7 +192,7 @@ def preprocessTrial(classifier_yaml, output_dir):
 
     # Load the global info file with bounding boxes for all positive images:
     # global_info_fname = 'info.dat'
-    global_info = loadGlobalInfo(bbinfo_dir)
+    global_info = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='bbinfo')
 
     pos_info_fname = '{}/positive.txt'.format(output_dir)
     neg_info_fname = '{}/negative.txt'.format(output_dir)
@@ -206,18 +200,18 @@ def preprocessTrial(classifier_yaml, output_dir):
     # Note: image paths in the data file have to be relative to the file itself.
     abs_output_dir = os.path.abspath(output_dir)
 
-    def write_img(img, dat_file, write_bbox=True):
-        img_path = None
-        if os.path.isabs(img):
-            img_path = os.path.relpath(img, abs_output_dir)
+    def write_img(img_path, dat_file, write_bbox=True):
+        rel_img_path = None
+        if os.path.isabs(img_path):
+            rel_img_path = os.path.relpath(img_path, abs_output_dir)
         else:
-            img_path = os.path.relpath(img, output_dir)
+            rel_img_path = os.path.relpath(img_path, output_dir)
 
-        dat_line = img_path
+        dat_line = rel_img_path
         if write_bbox:
-            key = img.split('/')[-1]
-            details = global_info[key]
-            dat_line = "{} {}".format(img_path, details)
+            rects = utils.info_entry_for_image(global_info, img_path)
+            details = ' '.join([' '.join(map(str, rect.opencv_bbox)) for rect in rects])
+            dat_line = "{} {} {}".format(rel_img_path, len(rects), details)
 
         # print 'dat_line:', dat_line
         dat_file.write(dat_line)
@@ -254,8 +248,10 @@ def createSamples(classifier_yaml, output_dir):
     pos_info_fname = '{}/positive.txt'.format(output_dir)
 
     numPos = 0
-    with open(pos_info_fname, 'r') as fh:
-        numPos = sum(1 for line in fh)
+    tmp_info = utils.load_opencv_bounding_box_info(pos_info_fname)
+    for img_path, bboxes in tmp_info.iteritems():
+        num = len(bboxes)
+        numPos += num
 
     samplesCommand = [ 'opencv_createsamples'
         , '-info', pos_info_fname
@@ -269,7 +265,7 @@ def createSamples(classifier_yaml, output_dir):
 
     try:
         with open('{}/output_create_samples.txt'.format(output_dir), 'w') as cmd_output_file:
-            cmd_ouptut = subprocess.check_call(samplesCommand, stdout=cmd_output_file, stderr=subprocess.STDOUT, cwd='.')
+            cmd_ouptut = subprocess.check_call(samplesCommand, stdout=cmd_output_file, stderr=subprocess.STDOUT, cwd='.', bufsize=1)
     except subprocess.CalledProcessError as e:
         print 'ERROR:'
         print '\te.returncode: {}'.format(e.returncode)
@@ -331,8 +327,20 @@ def trainClassifier(classifier_yaml, output_dir):
         ]
 
     # TODO: Pipe ouptut to file, since this is a long running process.
-    with open('{}/output_training.txt'.format(output_dir), 'w') as cmd_output_file:
-        cmd_ouptut = subprocess.check_call(trainingCommand, stdout=cmd_output_file, stderr=subprocess.STDOUT, cwd='{}'.format(output_dir))
+    with open('{}/output_training.txt'.format(output_dir), 'wb+') as cmd_output_file:
+        # cmd_ouptut = subprocess.check_call(trainingCommand, stdout=cmd_output_file, stderr=subprocess.STDOUT, cwd=output_dir)
+        # cmd_ouptut = subprocess.check_call(trainingCommand, stdout=cmd_output_file, stderr=subprocess.STDOUT, cwd=output_dir, shell=True)
+
+        # Note: OpenCV uses carriage returns to print and update progress lines
+        # like this one:
+        #     POS count : consumed   500 : 510
+        # These lines are updated thousands of times per classifier stage. The
+        # output file is too large/noisy if it contains these lines, so this
+        # code filters them out.
+        training_in = subprocess.Popen(trainingCommand, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=output_dir, bufsize=0)
+        # training_in = subprocess.Popen(['ls'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=output_dir, bufsize=0)
+
+        fileutils.stream_to_file_observing_cr(training_in, cmd_output_file)
 
 # runClassifier :: Tree String -> String -> IO ()
 import cv2
@@ -428,9 +436,11 @@ def runClassifier(classifier_yaml, output_dir):
 def cvDrawRectangle(img, rect, col, lw):
     cv2.rectangle(img,tuple(rect.tl),tuple(rect.br),col, lw)
 
-def viewPositiveSamples(classifier_yaml, output_dir):
+def view_positive_samples(classifier_yaml, output_dir):
     bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
-    global_info = loadGlobalInfo(bbinfo_dir)
+
+    global_info = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='bbinfo')
+    # global_info = loadGlobalInfo(bbinfo_dir)
 
     positive_dir = classifier_yaml['dataset']['directory']['positive']
 
@@ -450,13 +460,26 @@ def viewPositiveSamples(classifier_yaml, output_dir):
 
         print img_path, len(rects)
         for rect in rects:
-            cvDrawRectangle(img, rect, (255,0,0),2)
+            lw = max(2, min(img.shape[0], img.shape[1]) / 150)
+            cvDrawRectangle(img, rect, (255,0,0), lw)
+            # cv2.rectangle(img,(x,y),(x+w,y+h),(255,255,255),lw+2)
+            # cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),lw)
+
 
             # aspectRect = gm.extendBoundingBox(rect, 83/64.0)
             # cvDrawRectangle(img, aspectRect, (0,255,0),2)
             #
             # paddedRect = gm.padBoundingBox(aspectRect, (0.1, 0.1))
             # cvDrawRectangle(img, paddedRect, (0,0,255),2)
+
+            h, w = img.shape[:2]
+            max_dim = 1200.0
+            # if w > max_dim + 50 or h > max_dim + 50:
+            if abs(w - max_dim) > 50 or abs(h - max_dim) > 50:
+                sx = max_dim / w
+                sy = max_dim / h
+                current_scale = min(sx, sy)
+                img = cv2.resize(img, dsize=None, fx=current_scale, fy=current_scale)
 
         cv2.imshow('img', img)
         cv2.waitKey(0)

@@ -387,13 +387,24 @@ class PixelRectangle(np.ndarray):
     # Returns whether this rectangle is completely contained within an image
     # frame of the given dimensions.
     #
-    # PixelRectangle.lies_within_frame :: (Float, Float) -> Bool
+    # PixelRectangle.lies_within_frame :: (Int, Int) -> Bool
     def lies_within_frame(self, dimensions):
         if self.x1 < 0 or self.y1 < 0:
             return False
         if self.x2 > dimensions[0] or self.y2 > dimensions[1]:
             return False
         return True
+
+    # Returns whether this rectangle includes pixels on the very edges of an
+    # image frame with the given dimensions.
+    #
+    # PixelRectangle.touches_frame_edge :: (Int, Int) -> Bool
+    def touches_frame_edge(self, dimensions):
+        if self.x1 == 0 or self.y1 == 0:
+            return True
+        if self.x2 == dimensions[0] - 1 or self.y2 == dimensions[1] - 1:
+            return True
+        return False
 
     # Return this rectangle with its width or height increased such that its
     # aspect ratio matches the given aspect ratio.
