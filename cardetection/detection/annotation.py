@@ -1,6 +1,7 @@
 # Loosely based on code from:
 # http://www.pyimagesearch.com/2015/03/09/capturing-mouse-click-events-with-python-and-opencv/
 
+import argparse
 import os.path
 import cv2
 import cardetection.carutils.images as utils
@@ -92,7 +93,9 @@ class OpenCVAnnotator(object):
         return total
 
     # Annotate all images in the directory:
-    def annotate_directory(self, img_dir, bbinfo_file):
+    def annotate_directory(self, img_dir, bbinfo_file, display_width):
+        self.display_width = display_width
+
         # Get sorted image list:
         img_paths = sorted(utils.listImagesInDirectory(img_dir))
 
@@ -222,7 +225,7 @@ class OpenCVAnnotator(object):
 
     def update_display(self):
         h, w = self.current_img.shape[:2]
-        max_dim = 2500.0
+        max_dim = float(self.display_width)
         if w > max_dim + 50 or h > max_dim + 50:
             sx = max_dim / w
             sy = max_dim / h
@@ -272,14 +275,24 @@ class OpenCVAnnotator(object):
         cv2.destroyWindow(self.winName)
 
 if __name__ == '__main__':
-    img_dir = '/Users/mitchell/data/car-detection/university'
-    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__bbinfo.dat'
+    # Parse arguments:
+    parser = argparse.ArgumentParser(description='Train a HOG + Linear SVM classifier.')
+    parser.add_argument('img_dir', type=str, nargs='?', default='/Users/mitchell/data/car-detection/university', help='Directory containing the images to annotate.')
+    parser.add_argument('info_file', type=str, nargs='?', default='/Users/mitchell/data/car-detection/bbinfo/university__bbinfo.dat', help='File to which annotation data will be saved.')
+    parser.add_argument('display_width', type=int, nargs='?', default=1500, help='Width of the annotation window.')
+    args = parser.parse_args()
+
+    img_dir = args.img_dir
+    bbinfo_file = args.info_file
+    display_width = args.display_width
     # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__exclusion.dat'
 
     # img_dir = '/Users/mitchell/data/car-detection/shopping'
     # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat'
-    print bbinfo_file
+    print 'img_dir:', img_dir
+    print 'bbinfo_file:', bbinfo_file
+    print 'display_width:', repr(display_width)
 
     annotator = OpenCVAnnotator()
-    annotator.annotate_directory(img_dir, bbinfo_file)
+    annotator.annotate_directory(img_dir, bbinfo_file, display_width)
     annotator.destroy()

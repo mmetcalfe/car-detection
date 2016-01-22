@@ -56,8 +56,7 @@ Note: A directory containing bounding box data files specifying the positive tra
 
 ## To annotate images with bounding boxes:
 
-    $ python -m cardetection.detection.annotation
-
+    $ python -m cardetection.detection.annotation <img_dir> <info_file> [display_width=1500]
 
 ## To download images from ImageNet:
 
