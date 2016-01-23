@@ -49,8 +49,8 @@ dataset:
 
         # Specify numbers (use 'ALL' to select all images):
         numPositive: 'ALL'
-        numNegative: 0
-        numBackground: 'ALL'
+        numNegative: 'ALL'
+        numBackground: 1000
 
         synsets: # Sample from only these synsets (use '.*' for all).
             pos:
@@ -72,19 +72,32 @@ dataset:
         # # positive: /Users/mitchell/data/car-detection/shopping
         #
         background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
-        negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
+        # negative: /Users/mitchell/google-drive/honours/vision-paper/code/samples/hard_negative
 
         # bbinfo: /Users/mitchell/data/synthetic/bbinfo
         # positive: /Users/mitchell/data/synthetic/positive
         # background: /Users/mitchell/data/synthetic/background
 
         bbinfo: /Users/mitchell/data/car-detection/bbinfo
-        positive: /Users/mitchell/data/car-detection/university
-        # positive: /Users/mitchell/data/car-detection/shopping
+        # positive: /Users/mitchell/data/car-detection/university
+        # # # positive: /Users/mitchell/data/car-detection/shopping
         # background: /Users/mitchell/data/car-detection/shopping
+
+        positive: /Users/mitchell/data/car-detection/generated/positive
+        # background: /Users/mitchell/data/car-detection/generated/negative
+        negative: /Users/mitchell/data/car-detection/generated/negative
 
         # Base directory when generating a dataset using syntheticdataset.py
         synthetic: /Users/mitchell/data/synthetic
+
+        # Input and output directories for cardetection.detection.save_samples:
+        generation:
+            input:
+                positive: /Users/mitchell/data/car-detection/university
+                background: /Users/mitchell/data/car-detection/shopping
+            output:
+                positive: /Users/mitchell/data/car-detection/generated/positive
+                negative: /Users/mitchell/data/car-detection/generated/negative
 
     modifiers:
         # Modifier ranges to be applied to positive samples:
@@ -112,7 +125,7 @@ dataset:
         # max_trans_frac: ['0.0', '0.0']
 
         # Range of allowable scale factors (about the centre of the sample):
-        scale_range: ['0.95', '1.2']
+        scale_range: ['0.95', '1.1']
         # scale_range: ['1.0', '1.0']
 
         # Use different random scaling factors for both the x and y axes,
@@ -123,9 +136,12 @@ training:
     # Parameters for training a basic HOG + Linear SVM classifier:
     svm:
         # Window size for HOG + Linear SVM classifier:
+        # window_dims: ['224', '128'] # aspect 1.75
+        window_dims: ['112', '64'] # aspect 1.75
+
         # window_dims: ['192', '128'] # aspect 1.5
         # window_dims: ['144', '96'] # aspect 1.5
-        window_dims: ['96', '64'] # aspect 1.5
+        # window_dims: ['96', '64'] # aspect 1.5
         # window_dims: ['48', '32'] # aspect 1.5
 
         # window_dims: ['176', '128'] # aspect 1.375
@@ -151,8 +167,8 @@ training:
         # pos_num: '100000'
         # neg_num: '200000'
 
-        pos_num: '5000'
-        neg_num: '50000'
+        pos_num: '3000'
+        neg_num: '60000'
 
         # Number of rounds of hard-negative mining to perform
         mining_rounds: '2'
@@ -161,17 +177,17 @@ training:
         mining_increase_frac: '0.2'
     basic:
         data: classifiers
-        numStages: '10' # <number_of_stages = 20>]
-        numPos: '500' # Number of positive samples used to train each stage of the classifier.
+        numStages: '20' # <number_of_stages = 20>]
+        # numPos: '5000' # Number of positive samples used to train each stage of the classifier.
+        # numNeg: '60000' # Number of negative samples used to train each stage of the classifier.
+        numPos: '4000' # Number of positive samples used to train each stage of the classifier.
         numNeg: '2000' # Number of negative samples used to train each stage of the classifier.
-        # numPos: '2000' # Number of positive samples used to train each stage of the classifier.
-        # numNeg: '10000' # Number of negative samples used to train each stage of the classifier.
     cascade:
         featureType: { paramSet: [HOG] } # {HAAR(default), LBP, HOG}
         # featureType: { paramSet: [HAAR, LBP, HOG] } # {HAAR(default), LBP, HOG}
 
         # Window size for cascade classifier:
-        sampleSize: ['96', '64'] # [24, 24]
+        sampleSize: ['112', '64'] # [24, 24]
     boost:
         minHitRate: '0.995' # 0.995
         maxFalseAlarmRate: '0.5' # 0.5

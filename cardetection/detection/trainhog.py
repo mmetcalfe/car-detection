@@ -405,6 +405,9 @@ def generate_random_negative_regions_with_exclusions(bak_img_dir, exl_info_map, 
     all_images = [img_path for img_path in all_images if not utils.info_entry_for_image(exl_info_map, img_path) is None]
     print '  Found {} images with exclusion info.'.format(len(all_images))
 
+    if len(all_images) == 0:
+        raise ValueError('The given directory \'{}\' contains no images with exclusion info.'.format(bak_img_dir))
+
     image_list = all_images
     random.shuffle(image_list)
 
@@ -441,6 +444,9 @@ def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_
 
     all_images = [img_path for img_path in all_images if not utils.info_entry_for_image(exl_info_map, img_path) is None]
     print '  Found {} images with exclusion info.'.format(len(all_images))
+
+    if len(all_images) == 0:
+        raise ValueError('The given directory \'{}\' contains no images with exclusion info.'.format(bak_img_dir))
 
     image_list = all_images
     random.shuffle(image_list)
@@ -495,7 +501,7 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
     # Probability of rejecting samples that are not close to exclusion regions.
     # (Most images have large portions of sky and ground, and this prevents
     # oversampling those areas)
-    far_reject_prob = 0.75
+    far_reject_prob = 0.97
 
     num_found = 0
     while True:

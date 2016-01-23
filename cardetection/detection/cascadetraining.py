@@ -244,7 +244,7 @@ def preprocessTrial(classifier_yaml, output_dir):
 def createSamples(classifier_yaml, output_dir):
     # numPos, _, _ = requiredImageCounts(classifier_yaml)
 
-    balls_vec_fname = '{}/balls.vec'.format(output_dir)
+    samples_vec_fname = '{}/samples.vec'.format(output_dir)
     pos_info_fname = '{}/positive.txt'.format(output_dir)
 
     numPos = 0
@@ -255,7 +255,7 @@ def createSamples(classifier_yaml, output_dir):
 
     samplesCommand = [ 'opencv_createsamples'
         , '-info', pos_info_fname
-        , '-vec',  balls_vec_fname
+        , '-vec',  samples_vec_fname
         , '-num',  str(numPos)
         , '-w',    classifier_yaml['training']['cascade']['sampleSize'][0]
         , '-h',    classifier_yaml['training']['cascade']['sampleSize'][1]
@@ -305,11 +305,11 @@ def trainClassifier(classifier_yaml, output_dir):
     # # numPosTraining = int((numPos - skippedSamples) / (1 + (1 - minHitRate)**(numStages - 1))) # ??
     # numNegTraining = (numNeg + numBak)
 
-    balls_vec_fname = '{}/balls.vec'.format(output_dir)
+    samples_vec_fname = '{}/samples.vec'.format(output_dir)
     neg_info_fname = '{}/negative.txt'.format(output_dir)
 
     trainingCommand = [ 'opencv_traincascade'
-        , '-vec',               balls_vec_fname.split('/')[-1]
+        , '-vec',               samples_vec_fname.split('/')[-1]
         , '-data',              'data'
         , '-bg',                neg_info_fname.split('/')[-1]
         , '-numPos',            classifier_yaml['training']['basic']['numPos'] #str(numPosTraining)

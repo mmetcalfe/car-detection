@@ -58,6 +58,14 @@ Note: A directory containing bounding box data files specifying the positive tra
 
     $ python -m cardetection.detection.annotation <img_dir> <info_file> [display_width=1500]
 
+## To generate and save samples based on given annotation info files:
+
+    $ python -m cardetection.detection.save_samples
+
+Note: Uses annotation located in the bbinfo directory specified in template.yaml.
+
+Bounding box data will be loaded from all files with names matching `*__bbinfo.dat`, and exclusion data will be loaded from all files matching `*__exclusion.dat`.
+
 ## To download images from ImageNet:
 
     $ python -m download_synset_images_with_info <download_dir>

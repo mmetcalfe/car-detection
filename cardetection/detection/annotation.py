@@ -287,8 +287,8 @@ if __name__ == '__main__':
     display_width = args.display_width
     # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__exclusion.dat'
 
-    # img_dir = '/Users/mitchell/data/car-detection/shopping'
-    # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat'
+    img_dir = '/Users/mitchell/data/car-detection/shopping'
+    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat'
     print 'img_dir:', img_dir
     print 'bbinfo_file:', bbinfo_file
     print 'display_width:', repr(display_width)
