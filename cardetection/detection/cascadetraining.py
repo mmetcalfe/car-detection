@@ -73,7 +73,7 @@ def requiredImageCounts(trial_yaml):
 
 # sampleTrainingImages :: String -> [String] -> Int -> [String]
 def sampleTrainingImages(image_dir, synsets, sample_size, require_bboxes=False, bbinfo_dir=None):
-    image_list = utils.listImagesInDirectory(image_dir)
+    image_list = utils.list_images_in_directory(image_dir)
     # regexString = '.*({})_.*\.jpg'.format('|'.join(synsets))
     # regexString = 'n?({})(_.*)?\.(jpg|png)'.format('|'.join(synsets))
     regexString = '(.*/)?({})(_.*)?\.(jpg|png)'.format('|'.join(synsets))
@@ -390,7 +390,7 @@ def runClassifier(classifier_yaml, output_dir):
         results_dir = '{}/{}_results'.format(output_dir, test_source_name)
         detections_fname = '{}/{}_detections.dat'.format(output_dir, test_source_name)
 
-        img_list = utils.listImagesInDirectory(test_dir)
+        img_list = utils.list_images_in_directory(test_dir)
         random.shuffle(img_list)
 
         for img_path in img_list:
@@ -445,7 +445,7 @@ def view_positive_samples(classifier_yaml, output_dir):
     positive_dir = classifier_yaml['dataset']['directory']['positive']
 
     # for img_path in glob.glob("{}/*_*.jpg".format(positive_dir)):
-    # for img_path in utils.listImagesInDirectory(positive_dir):
+    # for img_path in utils.list_images_in_directory(positive_dir):
 
     pos_samples = sampleTrainingImages(positive_dir, ['.*'], None, require_bboxes=True, bbinfo_dir=bbinfo_dir)
 

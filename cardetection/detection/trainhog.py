@@ -162,7 +162,7 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
         # results_dir = '{}/{}_results'.format(output_dir, test_source_name)
         # detections_fname = '{}/{}_detections.dat'.format(output_dir, test_source_name)
 
-        img_list = sorted(utils.listImagesInDirectory(test_dir))
+        img_list = sorted(utils.list_images_in_directory(test_dir))
 
         for img_path in img_list:
             img = cv2.imread(img_path)
@@ -229,7 +229,7 @@ def test_classifier(classifier_yaml, svm_file_path, window_dims):
 
 # choose_positive_samples :: String -> Int -> [String] -> [ImageRegion]
 def choose_positive_samples(image_dir, sample_size, bbinfo_dir):
-    filtered_image_list = utils.listImagesInDirectory(image_dir)
+    filtered_image_list = utils.list_images_in_directory(image_dir)
 
     # Filter out images without bounding boxes:
     global_info = training.loadGlobalInfo(bbinfo_dir)
@@ -287,7 +287,7 @@ def view_image_regions(region_generator, dimensions, display_scale):
 # generate_positive_regions :: String -> Map String ??? -> String -> (Int, Int) -> generator(ImageRegion)
 def generate_positive_regions(image_dir, bbinfo_dir, modifiers_config=None, window_dims=None, min_size=(48,48)):
     print 'generate_positive_regions:'
-    all_images = utils.listImagesInDirectory(image_dir)
+    all_images = utils.list_images_in_directory(image_dir)
 
     # Create the modifier generator:
     # Note: Simply generate null modifiers if no modifier config is passed.
@@ -347,7 +347,7 @@ def generate_positive_regions(image_dir, bbinfo_dir, modifiers_config=None, wind
 
 def generate_negative_regions(bak_img_dir, neg_num, window_dims):
     print 'generate_negative_regions:'
-    all_images = utils.listImagesInDirectory(bak_img_dir)
+    all_images = utils.list_images_in_directory(bak_img_dir)
     if len(all_images) == 0:
         raise ValueError('The given directory \'{}\' contains no images.'.format(bak_img_dir))
     print '  Found {} images.'.format(len(all_images))
@@ -397,7 +397,7 @@ def generate_negative_regions(bak_img_dir, neg_num, window_dims):
 
 def generate_random_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims):
     print 'generate_negative_regions:'
-    all_images = utils.listImagesInDirectory(bak_img_dir)
+    all_images = utils.list_images_in_directory(bak_img_dir)
     if len(all_images) == 0:
         raise ValueError('The given directory \'{}\' contains no images.'.format(bak_img_dir))
     print '  Found {} images.'.format(len(all_images))
@@ -437,7 +437,7 @@ def generate_random_negative_regions_with_exclusions(bak_img_dir, exl_info_map, 
 
 def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, modifiers_config=None):
     print 'generate_negative_regions_with_exclusions:'
-    all_images = utils.listImagesInDirectory(bak_img_dir)
+    all_images = utils.list_images_in_directory(bak_img_dir)
     if len(all_images) == 0:
         raise ValueError('The given directory \'{}\' contains no images.'.format(bak_img_dir))
     print '  Found {} images.'.format(len(all_images))
@@ -744,7 +744,7 @@ if __name__ == '__main__':
     # exl_info_map = utils.load_opencv_bounding_box_info('/Users/mitchell/data/car-detection/bbinfo/shopping__exclusion.dat')
     # pos_reg_generator = generate_positive_regions(pos_img_dir, bbinfo_dir, classifier_yaml['dataset']['modifiers'], window_dims)
     # # neg_reg_generator = generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims)
-    # # all_images = utils.listImagesInDirectory(bak_img_dir)
+    # # all_images = utils.list_images_in_directory(bak_img_dir)
     # # neg_reg_generator = generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
     # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (4, 6), (window_dims[1], window_dims[0]))
     # # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))

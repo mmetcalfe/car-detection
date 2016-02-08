@@ -8,6 +8,7 @@ For several modules:
   * OpenCV 3.1.0 (build with "extra" contributed modules)
   * pyaml
   * pillow
+  * progress
   * matplotlib
 
 For trainhog:

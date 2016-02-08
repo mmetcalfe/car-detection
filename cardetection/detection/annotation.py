@@ -97,7 +97,7 @@ class OpenCVAnnotator(object):
         self.display_width = display_width
 
         # Get sorted image list:
-        img_paths = sorted(utils.listImagesInDirectory(img_dir))
+        img_paths = sorted(utils.list_images_in_directory(img_dir))
 
         self.img_index = 0 # Set initial index.
         self.current_path = img_paths[self.img_index]
@@ -287,8 +287,8 @@ if __name__ == '__main__':
     display_width = args.display_width
     # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__exclusion.dat'
 
-    # img_dir = '/Users/mitchell/data/car-detection/shopping'
-    # bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/shopping__bbinfo.dat'
+    img_dir = '/Users/mitchell/data/car-detection/university'
+    bbinfo_file = '/Users/mitchell/data/car-detection/bbinfo/university__bbinfo.dat'
     print 'img_dir:', img_dir
     print 'bbinfo_file:', bbinfo_file
     print 'display_width:', repr(display_width)

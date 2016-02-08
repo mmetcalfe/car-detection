@@ -300,9 +300,18 @@ class RegionDescriptor(object):
         label = info['label']
         return cls(region, descriptor, label)
 
-def listImagesInDirectory(image_dir):
-    image_list = glob.glob("{}/*.jpg".format(image_dir))
-    image_list += glob.glob("{}/*.png".format(image_dir))
+def list_images_in_directory(image_dir):
+    image_list = []
+    if isinstance(image_dir, basestring):
+        image_list.extend(glob.glob("{}/*.jpg".format(image_dir)))
+        image_list.extend(glob.glob("{}/*.png".format(image_dir)))
+    elif isinstance(image_dir, (list, tuple)):
+        # image_dir is actually a list of directories:
+        for img_dir in image_dir:
+            image_list.extend(glob.glob("{}/*.jpg".format(img_dir)))
+            image_list.extend(glob.glob("{}/*.png".format(img_dir)))
+    else:
+        raise TypeError('image_dir must be a string or a list of strings, but was a "{}".'.format(type(image_dir)))
     return image_list
 
 def get_hog_info_dict(hog):

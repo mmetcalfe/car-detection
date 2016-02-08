@@ -60,7 +60,7 @@ if __name__ == '__main__':
     exl_info_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='exclusion')
     def get_neg_reg_gen():
         return trainhog.generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, classifier_yaml['dataset']['modifiers'])
-    # all_images = utils.listImagesInDirectory(bak_img_dir)
+    # all_images = utils.list_images_in_directory(bak_img_dir)
     # neg_reg_generator = trainhog.generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
     # print len(list(neg_reg_generator))
     mosaic_gen = utils.mosaic_generator(get_neg_reg_gen(), (10, 15), (40, 60))
@@ -83,7 +83,7 @@ if __name__ == '__main__':
             break
 
     print 'Preview positive generation:'
-    print '  [ESC]  Stop viewing negatives'
+    print '  [ESC]  Stop viewing positives'
     print '  [ S ]  Save positive regions to disk'
     pos_img_dir = classifier_yaml['dataset']['directory']['generation']['input']['positive']
     # pos_img_dir = classifier_yaml['dataset']['directory']['positive']
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                 break
             if key == ord('s'):
                 save_regions(get_pos_reg_gen(), pos_num, window_dims, pos_output_dir)
-                save_generated_bbinfo(pos_num, window_dims, pos_img_dir, bbinfo_dir)
+                save_generated_bbinfo(pos_num, window_dims, pos_output_dir, bbinfo_dir)
                 stop = True
                 break
             if key != 255:
