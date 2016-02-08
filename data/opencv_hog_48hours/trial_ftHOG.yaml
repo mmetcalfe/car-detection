@@ -1,0 +1,44 @@
+dataset:
+  description:
+    numBackground: 20000
+    numNegative: ALL
+    numPositive: ALL
+    synsets:
+      bak: [.*]
+      neg: [.*]
+      pos: [.*]
+  directory:
+    background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
+    bbinfo: /Users/mitchell/data/car-detection/bbinfo
+    generation:
+      input:
+        background: /Users/mitchell/data/car-detection/shopping
+        positive: [/Users/mitchell/data/car-detection/maths, /Users/mitchell/data/car-detection/shopping,
+          /Users/mitchell/data/car-detection/university]
+      output: {negative: /Users/mitchell/data/car-detection/generated/negative, positive: /Users/mitchell/data/car-detection/generated/positive}
+    negative: /Users/mitchell/data/car-detection/generated/negative
+    positive: /Users/mitchell/data/car-detection/generated/positive
+    synthetic: /Users/mitchell/data/synthetic
+  modifiers:
+    enable_xflip: true
+    max_rotation_degrees: '5.0'
+    max_trans_frac: ['0.05', '0.05']
+    scale_axes_independently: true
+    scale_range: ['0.95', '1.1']
+    use_interp: false
+testing:
+  directories: [/Users/mitchell/data/car-detection/maths]
+training:
+  basic: {data: classifiers, numNeg: '6000', numPos: '6500', numStages: '29'}
+  boost: {maxDepth: '1', maxFalseAlarmRate: '0.667', maxWeakCount: '100', minHitRate: '0.995',
+    weightTrimRate: '0.95'}
+  cascade:
+    featureType: HOG
+    sampleSize: ['112', '64']
+  haarFeature: {mode: ALL}
+  svm:
+    mining_increase_frac: '0.2'
+    mining_rounds: '2'
+    neg_num: '60000'
+    pos_num: '8000'
+    window_dims: ['112', '64']

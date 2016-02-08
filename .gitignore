@@ -6,3 +6,4 @@
 /*.png
 /output
 /car_detector.yaml
+/data/**/samples.vec

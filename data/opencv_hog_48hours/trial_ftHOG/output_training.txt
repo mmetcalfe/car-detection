@@ -1,0 +1,27 @@
+---------------------------------------------------------------------------------
+Training parameters are pre-loaded from the parameter file in data folder!
+Please empty this folder if you want to use a NEW set of training parameters.
+---------------------------------------------------------------------------------
+PARAMETERS:
+cascadeDirName: data
+vecFileName: samples.vec
+bgFileName: negative.txt
+numPos: 6500
+numNeg: 6000
+numStages: 29
+precalcValBufSize[Mb] : 1024
+precalcIdxBufSize[Mb] : 1024
+acceptanceRatioBreakValue : -1
+stageType: BOOST
+featureType: HOG
+sampleWidth: 112
+sampleHeight: 64
+boostType: GAB
+minHitRate: 0.995
+maxFalseAlarmRate: 0.667
+weightTrimRate: 0.95
+maxDepth: 1
+maxWeakCount: 100
+
+Stages 0-28 are loaded
+

@@ -1,0 +1,18 @@
+Info file name: trials/trial_ftHOG/positive.txt
+Img file name: (NULL)
+Vec file name: trials/trial_ftHOG/samples.vec
+BG  file name: (NULL)
+Num: 8000
+BG color: 0
+BG threshold: 80
+Invert: FALSE
+Max intensity deviation: 40
+Max x angle: 1.1
+Max y angle: 1.1
+Max z angle: 0.5
+Show samples: FALSE
+Original image will be scaled to:
+	Width: $backgroundWidth / 112
+	Height: $backgroundHeight / 64
+Create training samples from images collection...
+Done. Created 8000 samples
