@@ -8,6 +8,7 @@ import cv2
 import cascadetraining as training
 import cardetection.carutils.images as utils
 import cardetection.carutils.strutils as strutils
+import cardetection.carutils.fileutils as fileutils
 import cardetection.carutils.geometry as gm
 from progress.bar import Bar as ProgressBar
 from cardetection.carutils.datastore import DataStore
@@ -509,7 +510,7 @@ def generate_negative_regions_in_image_with_exclusions(img_path, exl_info_map, w
         h = int(round(img_w * scale / aspect))
         sw = int(window_step*w)
         sh = int(window_step*h)
-        print scale, (w, h), (sw, sh)
+        # print 'scale, (w, h), (sw, sh):', scale, (w, h), (sw, sh)
 
         if scale > max_scale:
             return
@@ -640,7 +641,7 @@ def load_region_descriptors(trial_file):
             import pickle
             data = pickle.load(f)
     elif ext == '.yaml':
-        data = training.loadYamlFile(trial_file)
+        data = fileutils.load_yaml_file(trial_file)
     else:
         raise ValueError('The file \'{}\' has an unrecognised extension: \'{}\'.'.format(trial_file, ext))
 
@@ -729,7 +730,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Read classifier training file:
-    classifier_yaml = training.loadYamlFile(args.classifier_yaml)
+    classifier_yaml = fileutils.load_yaml_file(args.classifier_yaml)
     output_dir = args.classifier_yaml.split('.yaml')[0]
 
     window_dims = tuple(map(int, classifier_yaml['training']['svm']['window_dims']))

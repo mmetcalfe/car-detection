@@ -9,6 +9,7 @@ import PIL.Image
 import cascadetraining as training
 import cardetection.carutils.images as utils
 import cardetection.carutils.strutils as strutils
+import cardetection.carutils.fileutils as fileutils
 import cardetection.carutils.geometry as gm
 from progress.bar import Bar as ProgressBar
 from cardetection.carutils.datastore import DataStore
@@ -35,6 +36,21 @@ def save_regions(reg_gen, num_regions, window_dims, save_dir):
         progressbar.next()
     progressbar.finish()
 
+# TODO: Move these methods to a more sensible module.
+def load_negative_region_generator(config_yaml):
+    window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
+    bak_img_dir = config_yaml['dataset']['directory']['generation']['input']['background']
+    bbinfo_dir = config_yaml['dataset']['directory']['bbinfo']
+    exl_info_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='exclusion')
+    modifiers = config_yaml['dataset']['modifiers']
+    return trainhog.generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, modifiers)
+def load_positive_region_generator(config_yaml):
+    window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
+    pos_img_dir = config_yaml['dataset']['directory']['generation']['input']['positive']
+    bbinfo_dir = config_yaml['dataset']['directory']['bbinfo']
+    modifiers = config_yaml['dataset']['modifiers']
+    return trainhog.generate_positive_regions(pos_img_dir, bbinfo_dir, modifiers, window_dims)
+
 if __name__ == '__main__':
     # random.seed(123454321) # Use deterministic samples.
 
@@ -44,7 +60,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Read classifier training file:
-    classifier_yaml = training.loadYamlFile(args.classifier_yaml)
+    classifier_yaml = fileutils.load_yaml_file(args.classifier_yaml)
     output_dir = args.classifier_yaml.split('.yaml')[0]
 
     window_dims = tuple(map(int, classifier_yaml['training']['svm']['window_dims']))
@@ -53,14 +69,10 @@ if __name__ == '__main__':
     print 'Preview negative generation:'
     print '  [ESC]  Stop viewing negatives'
     print '  [ S ]  Save negative regions to disk'
-    bak_img_dir = classifier_yaml['dataset']['directory']['generation']['input']['background']
     neg_num = int(classifier_yaml['training']['svm']['neg_num'])
-    bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
     neg_output_dir = classifier_yaml['dataset']['directory']['generation']['output']['negative']
-    exl_info_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='exclusion')
     def get_neg_reg_gen():
-        return trainhog.generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, classifier_yaml['dataset']['modifiers'])
-    # all_images = utils.list_images_in_directory(bak_img_dir)
+        return load_negative_region_generator(classifier_yaml)
     # neg_reg_generator = trainhog.generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
     # print len(list(neg_reg_generator))
     mosaic_gen = utils.mosaic_generator(get_neg_reg_gen(), (10, 15), (40, 60))
@@ -85,13 +97,11 @@ if __name__ == '__main__':
     print 'Preview positive generation:'
     print '  [ESC]  Stop viewing positives'
     print '  [ S ]  Save positive regions to disk'
-    pos_img_dir = classifier_yaml['dataset']['directory']['generation']['input']['positive']
-    # pos_img_dir = classifier_yaml['dataset']['directory']['positive']
     pos_num = int(classifier_yaml['training']['svm']['pos_num'])
     bbinfo_dir = classifier_yaml['dataset']['directory']['bbinfo']
     pos_output_dir = classifier_yaml['dataset']['directory']['generation']['output']['positive']
     def get_pos_reg_gen():
-        return trainhog.generate_positive_regions(pos_img_dir, bbinfo_dir, classifier_yaml['dataset']['modifiers'], window_dims)
+        return load_positive_region_generator(classifier_yaml)
     mosaic_gen = utils.mosaic_generator(get_pos_reg_gen(), (4, 6), (window_dims[1], window_dims[0]))
     # mosaic_gen = utils.mosaic_generator(pos_reg_generator, (20, 30), (40, 60))
     stop = False

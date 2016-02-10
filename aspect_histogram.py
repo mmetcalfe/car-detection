@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # parser.add_argument('template_yaml', type=str, nargs='?', default='template.yaml', help='Filename of the YAML file describing the trials to generate.')
     # args = parser.parse_args()
     #
-    # template_yaml = training.loadYamlFile(args.template_yaml)
+    # template_yaml = fileutils.load_yaml_file(args.template_yaml)
     #
     # classifier_yaml = template_yaml
     #

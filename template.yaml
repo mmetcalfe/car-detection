@@ -140,7 +140,9 @@ training:
     svm:
         # Window size for HOG + Linear SVM classifier:
         # window_dims: ['224', '128'] # aspect 1.75
-        window_dims: ['112', '64'] # aspect 1.75
+        # window_dims: ['112', '64'] # aspect 1.75
+        # window_dims: ['42', '24'] # aspect 1.75
+        window_dims: ['28', '16'] # aspect 1.75
 
         # window_dims: ['192', '128'] # aspect 1.5
         # window_dims: ['144', '96'] # aspect 1.5
@@ -152,13 +154,10 @@ training:
         # window_dims: ['88', '64'] # aspect 1.375
         # window_dims: ['16', '16'] # aspect 1.375
 
-
         # window_dims: ['64', '128'] # aspect 0.5
         # window_dims: ['128', '64'] # aspect 2.0
 
-
         # window_dims: ['300', '200'] # aspect 1.5
-
 
         # Number of positive and negative images to train with.
         # pos_num: '19479' # KITTI dataset

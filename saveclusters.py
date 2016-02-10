@@ -7,6 +7,7 @@ import cv2
 import cardetection.detection.alignment as alignment
 import cardetection.detection.trainhog as trainhog
 import cardetection.carutils.images as utils
+import cardetection.carutils.fileutils as fileutils
 import cardetection.carutils.geometry as gm
 import cardetection.detection.cascadetraining as training
 
@@ -21,7 +22,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Read classifier training file:
-    classifier_yaml = training.loadYamlFile(args.classifier_yaml)
+    classifier_yaml = fileutils.load_yaml_file(args.classifier_yaml)
     output_dir = args.classifier_yaml.split('.yaml')[0]
 
     window_dims = tuple(map(int, classifier_yaml['training']['svm']['window_dims']))

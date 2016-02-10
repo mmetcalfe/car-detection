@@ -1,4 +1,15 @@
 import io
+import os.path
+import yaml
+
+# loadYamlFile :: String -> IO (Tree String)
+def load_yaml_file(fname):
+    if not os.path.isfile(fname):
+        raise ValueError('Input file \'{}\' does not exist!'.format(fname))
+    file = open(fname, 'r')
+    data = yaml.load(file)
+    file.close()
+    return data
 
 def read_process_stdout_unbufferred(process):
     # TODO: Extract utility function:

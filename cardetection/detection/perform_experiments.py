@@ -17,6 +17,7 @@ import math
 from concurrent import futures
 
 import cascadetraining as training
+import cardetection.carutils.fileutils as fileutils
 
 NUM_THREADS = 6
 
@@ -93,7 +94,7 @@ if __name__ == "__main__":
 	# print '===== VIEW SAMPLES ====='
 	# print 'Note: Comment out this section if you actually want to train anything.'
 	# for trial_yaml in trial_files:
-	# 	classifier_yaml = training.loadYamlFile(trial_yaml)
+	# 	classifier_yaml = fileutils.load_yaml_file(trial_yaml)
 	# 	output_dir = trial_yaml.split('.yaml')[0]
 	# 	training.view_positive_samples(classifier_yaml, output_dir)
 
@@ -105,7 +106,7 @@ if __name__ == "__main__":
 	for trial_yaml in trial_files:
 		print '    Preprocessing: {}'.format(trial_yaml)
 		# Read classifier training file:
-		classifier_yaml = training.loadYamlFile(trial_yaml)
+		classifier_yaml = fileutils.load_yaml_file(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
 
 		# Preprocess the trial:
@@ -127,7 +128,7 @@ if __name__ == "__main__":
 
 	for trial_yaml in trial_files:
 		# Read classifier training file:
-		classifier_yaml = training.loadYamlFile(trial_yaml)
+		classifier_yaml = fileutils.load_yaml_file(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
 		trained_classifier_xml = '{}/data/cascade.xml'.format(output_dir)
 		params_xml = '{}/data/params.xml'.format(output_dir)
@@ -143,7 +144,7 @@ if __name__ == "__main__":
 
 	def doTraining(fname):
 		# Read classifier training file:
-		classifier_yaml = training.loadYamlFile(fname)
+		classifier_yaml = fileutils.load_yaml_file(fname)
 		output_dir = fname.split('.yaml')[0]
 		training.trainClassifier(classifier_yaml, output_dir)
 
@@ -168,14 +169,14 @@ if __name__ == "__main__":
 	# # TODO: Parallelise this code.
 	# for trial_yaml in trial_files:
 	# 	# Read classifier training file:
-	# 	classifier_yaml = training.loadYamlFile(trial_yaml)
+	# 	classifier_yaml = fileutils.load_yaml_file(trial_yaml)
 	# 	output_dir = trial_yaml.split('.yaml')[0]
 	#
 	# 	training.runClassifier(classifier_yaml, output_dir)
 
 	def doRunning(trial_yaml):
 		# Read classifier training file:
-		classifier_yaml = training.loadYamlFile(trial_yaml)
+		classifier_yaml = fileutils.load_yaml_file(trial_yaml)
 		output_dir = trial_yaml.split('.yaml')[0]
 		training.runClassifier(classifier_yaml, output_dir)
 

@@ -24,15 +24,6 @@ class TooFewImagesError(Exception):
     def __str__(self):
         return 'TooFewImagesError: ({} < {})'.format(repr(self.presentCounts), repr(self.requiredCounts))
 
-# loadYamlFile :: String -> IO (Tree String)
-def loadYamlFile(fname):
-    if not os.path.isfile(fname):
-        raise ValueError('Input file \'{}\' does not exist!'.format(fname))
-    file = open(fname, 'r')
-    data = yaml.load(file)
-    file.close()
-    return data
-
 # loadGlobalInfo :: String -> Map String String
 def loadGlobalInfo(bbinfo_folder):
     global_info = {}

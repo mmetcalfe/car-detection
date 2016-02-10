@@ -4,6 +4,7 @@ import yaml
 import numpy as np
 import cv2
 import cardetection.carutils.images as utils
+import cardetection.carutils.fileutils as fileutils
 import cardetection.carutils.geometry as gm
 import cardetection.carutils.drawing2d as drawing2d
 import cascadetraining as training
@@ -136,7 +137,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Read classifier training file:
-    classifier_yaml = training.loadYamlFile(args.dataset_yaml)
+    classifier_yaml = fileutils.load_yaml_file(args.dataset_yaml)
 
     base_dir = classifier_yaml['dataset']['directory']['synthetic']
     pos_num = int(classifier_yaml['training']['svm']['pos_num'])
