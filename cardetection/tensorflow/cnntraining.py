@@ -11,7 +11,12 @@ tf.app.flags.DEFINE_string('config_yaml', 'template.yaml',
                            """Filename of the YAML file describing the """
                            """classifier to train.""")
 
-datasets = input_data.read_data_sets(FLAGS.config_yaml, pos_frac=0.2)
+datasets = input_data.initialise_data_sets(
+    FLAGS.config_yaml,
+    pos_frac=0.2,
+    test_pos_frac=1.0
+)
+feature_batch, label_batch = datasets.train.batch_generators(50)
 
 # Create the output directory:
 if not os.path.isdir(FLAGS.train_dir):
@@ -74,7 +79,8 @@ num_col_chnls = 3
 img_pixels = img_w*img_h*num_col_chnls
 
 # Placeholder for input images:
-x = tf.placeholder("float", [None, img_pixels], name='input_images')
+# x = tf.placeholder("float", [None, img_pixels], name='input_images')
+x = feature_batch
 
 x_col_image = tf.reshape(x, [-1, img_h, img_w, num_col_chnls])
 x_image = tf.image.rgb_to_grayscale(x_col_image)
@@ -150,7 +156,8 @@ tf.image_summary('filter_results', conv_mosaic(h_conv1), max_images=3)
 
 # Train classifier:
 # Define loss and optimizer:
-y_ = tf.placeholder("float", [None, num_classes], name="y-input")
+# y_ = tf.placeholder("float", [None, num_classes], name="y-input")
+y_ = label_batch
 
 # More name scopes will clean up the graph representation
 with tf.name_scope("xent") as scope:
@@ -193,29 +200,71 @@ if False:
     print 'get_checkpoint_state', tf.train.get_checkpoint_state(checkpoint_dir)
     saver.restore(sess, latest_ckpt)
 else:
+    print 'create_threads'
+    # enqueue_threads = datasets.train.qrunner.create_threads(sess, coord=datasets.train.coord, start=True)
+    datasets.train.start_threads(sess, num_threads=7)
+
+    # One process, 100 steps, batch size 50:
+    # real	5m29.924s
+    # user	12m43.051s
+    # sys	0m44.085s
+
+    # 3 processes, 100 steps, batch size 50:
+    # real	3m13.517s
+    # user	15m46.751s
+    # sys	0m59.183s
+
+    # 7 processes, 100 steps, batch size 50, load batch size: 100
+    # real	2m55.385s
+    # user	20m43.254s
+    # sys	1m10.583s
+
+    # 15 processes, 100 steps, batch size 50:
+    # real	3m11.660s
+    # user	23m34.095s
+    # sys	1m5.392s
+
     # Train the classifier:
-    # for i in range(20000):
-    for i in range(100):
-        batch_xs, batch_ys = datasets.train.next_batch(50)
+    try:
+        for i in range(100):
+        # for i in range(20000):
+            if datasets.train.should_stop():
+                break
 
-        if i % 10 == 0:  # Record summary data, and the accuracy
-            # feed = {x: datasets.test.images, y_: datasets.test.labels, keep_prob: 1.0}
-            feed = {x: batch_xs, y_: batch_ys, keep_prob: 1.0}
-            result = sess.run([merged, accuracy], feed_dict=feed)
-            summary_str = result[0]
-            acc = result[1]
-            writer.add_summary(summary_str, i)
-            # print("Accuracy at step %s: %s" % (i, acc))
-            print("Training accuracy at step %s: %s" % (i, acc))
+            if (i+1)%10 == 0:  # Record summary data, and the accuracy
+                print 'Recording summary data, and accuracy...'
+                # batch_xs, batch_ys = datasets.test.next_batch(50)
+                # # feed = {x: datasets.test.images, y_: datasets.test.labels, keep_prob: 1.0}
+                # feed = {x: batch_xs, y_: batch_ys, keep_prob: 1.0}
+                # result = sess.run([merged, accuracy], feed_dict=feed)
+                result = sess.run([merged, accuracy], feed_dict={keep_prob: 1.0})
+                summary_str = result[0]
+                acc = result[1]
+                writer.add_summary(summary_str, i)
+                # print 'Accuracy at step {}: {}.'.format(i, acc)
+                print 'Training accuracy at step {}: {}.'.format(i, acc)
 
-        if (i+1)%100 == 0:
-            train_accuracy = accuracy.eval(session=sess,feed_dict={
-            x: batch_xs, y_: batch_ys, keep_prob: 1.0})
-            print "step %d, training accuracy %g"%(i, train_accuracy)
-            saver.save(sess, checkpoint_prefix, global_step=i)
+            if (i+1)%100 == 0:
+                print 'Saving checkpoint...'
+                # train_accuracy = accuracy.eval(session=sess,feed_dict={
+                # x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+                saver.save(sess, checkpoint_prefix, global_step=i)
+                print 'Checkpoint saved, step: {}.'.format(i)
 
-        train_step.run(session=sess, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
-
+            # train_step.run(session=sess, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
+            # print 'train_step'
+            print 'train_step {:4}, mpq size: {:4}, tfq size: {:4}'.format(i, datasets.train.get_mp_queue_size(), datasets.train.get_tf_queue_size(sess))
+            train_step.run(session=sess, feed_dict={keep_prob: 0.5})
+    except Exception, e:
+        # Report exceptions to the coordinator.
+        datasets.train.request_stop(e)
+    #    coord.join(threads, stop_grace_period_secs=2)
+    datasets.train.stop_threads()
+    print 'sess.close()'
+    try:
+        sess.close()
+    except tf.errors.CancelledError:
+        pass
 # feed = {x: datasets.test.images, y_: datasets.test.labels, keep_prob: 1.0}
 # acc = accuracy.eval(session=sess,feed_dict=feed)
 # print 'test accuracy {}'.format(acc)

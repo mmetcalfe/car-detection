@@ -10,6 +10,7 @@ For several modules:
   * pillow
   * progress
   * matplotlib
+  * skimage (scikit-image), for sliding window generation
 
 For trainhog:
 
@@ -83,6 +84,12 @@ Downloads all images with bounding boxes from the synsets listed in `parent_word
 
     $ python -m cardetection.detection.syntheticdataset
 
+
+## Tensorflow:
+
+To run tensorboard:
+
+    $ bazel-bin/tensorflow/tensorboard/tensorboard --logdir /projects/car-detection/output/cnn-train/
 
 ## Other scripts:
 
