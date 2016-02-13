@@ -99,6 +99,7 @@ var DetectorControl = React.createClass({
     },
 
     componentDidMount: function() {
+        // this.setState({liked: !this.state.liked});
         // $.getJSON('/_add_numbers', {
         //     a: 4,
         //     b: 6
@@ -128,6 +129,15 @@ var DetectorControl = React.createClass({
     changeImageDirectory: function(value) {
         console.log('changeImageDirectory', value)
     },
+    moveToNextImage: function() {
+        console.log('moveToNextImage')
+    },
+    moveToPreviousImage: function() {
+        console.log('moveToPreviousImage')
+    },
+    detectButtonClicked: function() {
+        console.log('detectButtonClicked')
+    },
     render: function() {
         // Note: Newer versions of react-select use the following syntax:
         // <Select.Async
@@ -137,22 +147,50 @@ var DetectorControl = React.createClass({
         // />
         return (
         <div>
-            <Select
-                name='detector-select'
-                asyncOptions={this.getDetectorOptions}
-                onChange={this.changeDetector}
-            />
-            <Select
-                name='imageDir-select'
-                asyncOptions={this.getImageDirectoryOptions}
-                onChange={this.changeImageDirectory}
-            />
+            <div className="panel panel-default">
+                <div className="panel-heading">
+                    <h3 className="panel-title">Settings</h3>
+                </div>
+                <div className="panel-body">
+                {/* Forms reference: http://bootstrapdocs.com/v3.3.6/docs/css/#forms */}
+                <form className="form-horizontal">
+                <div className="form-group">
+                  <label className="col-sm-2 control-label">Detector</label>
+                  <div className="col-sm-10">
+                  <Select
+                      name='detector-select'
+                      asyncOptions={this.getDetectorOptions}
+                      onChange={this.changeDetector}
+                  />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="col-sm-2 control-label">Test set</label>
+                  <div className="col-sm-10">
+                    <Select
+                        name='imageDir-select'
+                        asyncOptions={this.getImageDirectoryOptions}
+                        onChange={this.changeImageDirectory}
+                    />
+                  </div>
+                </div>
+                </form>
+                </div>
+            </div>
+            <div className="jumbotron">
+            </div>
+            <nav>
+              <ul className="pager">
+                <li className="previous" onClick={this.moveToPreviousImage}><a href="#"><span aria-hidden="true">&larr;</span> Previous Image</a></li>
+                <li className="next" onClick={this.moveToNextImage}><a href="#">Next Image <span aria-hidden="true">&rarr;</span></a></li>
+              </ul>
+            </nav>
+            <button className="btn btn-primary" onClick={this.detectButtonClicked}>Detect Cars</button>
             <Loader loaded={this.state.loaded}>
             </Loader>
         </div>
         );
     }
-
 });
 
 ReactDOM.render(
