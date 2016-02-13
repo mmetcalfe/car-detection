@@ -1,0 +1,24 @@
+# Directories containing trained classifiers.
+# Each can be either:
+#  - The data directory of an OpenCV cascade classifier (containing cascade.xml)
+#  - A directory containing TensorFlow checkpoints
+detector_directories:
+    - label: TensorFlow CNN
+      value: /Users/mitchell/google-drive/honours/car-detection/car-detection/output/cnn-train
+    - label: OpenCV Cascade
+      value: /Users/mitchell/google-drive/honours/car-detection/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+
+# Directories containing test images:
+image_directories:
+    - label: Maths
+      value: /Users/mitchell/data/car-detection/maths
+    - label: Shopping
+      value: /Users/mitchell/data/car-detection/shopping
+    - label: Engineering
+      value: /Users/mitchell/data/car-detection/university
+    - label: ImageNet Cars
+      value: /Users/mitchell/data/imagenet/test
+    - label: KITTI
+      value: /Users/mitchell/data/kitti/testing/image_2
+    - label: ImageNet Background
+      value: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw

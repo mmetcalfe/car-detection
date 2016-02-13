@@ -38,16 +38,31 @@
 //
 // });
 
-// // list of countries, defined with JavaScript object literals
-// var countries = [
-//   {"name": "Sweden"}, {"name": "China"}, {"name": "Peru"}, {"name": "Czech Republic"},
-//   {"name": "Bolivia"}, {"name": "Latvia"}, {"name": "Samoa"}, {"name": "Armenia"},
-//   {"name": "Greenland"}, {"name": "Cuba"}, {"name": "Western Sahara"}, {"name": "Ethiopia"},
-//   {"name": "Malaysia"}, {"name": "Argentina"}, {"name": "Uganda"}, {"name": "Chile"},
-//   {"name": "Aruba"}, {"name": "Japan"}, {"name": "Trinidad and Tobago"}, {"name": "Italy"},
-//   {"name": "Cambodia"}, {"name": "Iceland"}, {"name": "Dominican Republic"}, {"name": "Turkey"},
-//   {"name": "Spain"}, {"name": "Poland"}, {"name": "Haiti"}
-// ];
+
+var React = require('react');
+var ReactDOM = require('react-dom');
+var Loader = require('react-loader');
+var Select = require('react-select');
+
+function fetchJson(url, data) {
+    if (data === undefined) {
+        return fetch(url)
+        .then(function(response) {
+            // console.log(response)
+            return response.json();
+        });
+    } else {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function(response) {
+            // console.log(response)
+            return response.json();
+        });
+    }
+}
 
 var DetectorControl = React.createClass({
     getInitialState: function() {
@@ -66,17 +81,36 @@ var DetectorControl = React.createClass({
             currentImgPath: null,
             currentImg: null,
             detections: null,
+            loaded: true,
         };
     },
 
-    componentDidMount: function() {
-        fetch('/_add_numbers', {
-            method: "POST",
-            body: {a: 3, b:4}
+    getDetectorOptions: function(input) {
+        return fetchJson('/_detector_directories')
+        .then(function(json) {
+            return {options: json['detector_directories']}
         })
-        .then(function(response){
-            console.log(response)
-        });
+    },
+    getImageDirectoryOptions: function(input) {
+        return fetchJson('/_image_directories')
+        .then(function(json) {
+            return {options: json['image_directories']}
+        })
+    },
+
+    componentDidMount: function() {
+        // $.getJSON('/_add_numbers', {
+        //     a: 4,
+        //     b: 6
+        // }, function(data) {
+        //     console.log(data)
+        // });
+        // fetchJson('/_add_numbers', {a:3, b:4, test:'test'})
+        // .then(function(json) {
+        //     console.log(json)
+        // }).catch(function (error) {
+        //     console.log('Request failed', error);
+        // });
         // $.get(this.props.source,
         //     function (result) {
         //         var lastGist = result[0];
@@ -88,21 +122,41 @@ var DetectorControl = React.createClass({
         // );
     },
 
+    changeDetector: function(value) {
+        console.log('changeDetector', value)
+    },
+    changeImageDirectory: function(value) {
+        console.log('changeImageDirectory', value)
+    },
     render: function() {
+        // Note: Newer versions of react-select use the following syntax:
+        // <Select.Async
+        //     name='imageDir-select'
+        //     loadOptions={this.getImageDirectoryOptions}
+        //     onChange={this.changeImageDirectory}
+        // />
         return (
-          <div>
-            {// <input type>
-            // <a href={this.state.lastGistUrl}>here</a>.
-        }
-          </div>
+        <div>
+            <Select
+                name='detector-select'
+                asyncOptions={this.getDetectorOptions}
+                onChange={this.changeDetector}
+            />
+            <Select
+                name='imageDir-select'
+                asyncOptions={this.getImageDirectoryOptions}
+                onChange={this.changeImageDirectory}
+            />
+            <Loader loaded={this.state.loaded}>
+            </Loader>
+        </div>
         );
-      }
+    }
 
 });
 
-
-React.render(
-  // <DynamicSearch items={ countries } />,
-  <DetectorControl/>,
-  document.getElementById('main')
+ReactDOM.render(
+    // <DynamicSearch items={ countries } />,
+    <DetectorControl/>,
+    document.getElementById('main')
 );

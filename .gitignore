@@ -9,3 +9,4 @@
 /data/**/samples.vec
 **/bower_components/
 **/node_modules/
+**/generated_*/
