@@ -31,6 +31,26 @@ For carpark rendering:
   * cyglfw3
   * pyopengl
 
+## To build the web-app:
+
+Install node and npm.
+
+Install bower:
+
+    $ npm install -g bower
+
+Install dependencies:
+
+Run in the root directory:
+
+    $ pip install -r requirements.txt
+
+Run in webapp/cardetector:
+
+    $ npm install
+    $ bower install
+
+Note: The app structure was based on https://realpython.com/blog/python/the-ultimate-flask-front-end/
 
 ## To train a cascade classifier:
 

@@ -1,0 +1,35 @@
+{
+  "name": "cardetector",
+  "version": "1.0.0",
+  "description": "Web app providing a GUI for the car detection project.",
+  "main": "project/appserver.py",
+  "dependencies": {},
+  "devDependencies": {
+    "bower": "^1.7.7",
+    "gulp": "^3.9.1",
+    "gulp-browserify": "^0.5.1",
+    "gulp-clean": "^0.3.1",
+    "gulp-rename": "^1.2.2",
+    "gulp-size": "^2.0.0",
+    "react": "^0.14.7",
+    "reactify": "^1.1.1"
+  },
+  "scripts": {
+    "test": "python project/appserver.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/mmetcalfe/car-detection.git"
+  },
+  "keywords": [
+    "computer-vision",
+    "machine-learning",
+    "object-detection"
+  ],
+  "author": "Mitchell Metcalfe <mitchell.s.metcalfe@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mmetcalfe/car-detection/issues"
+  },
+  "homepage": "https://github.com/mmetcalfe/car-detection#readme"
+}

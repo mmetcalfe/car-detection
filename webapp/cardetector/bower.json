@@ -1,0 +1,30 @@
+{
+  "name": "cardetector",
+  "homepage": "https://github.com/mmetcalfe/car-detection",
+  "authors": [
+    "Mitchell Metcalfe <mitchell.s.metcalfe@gmail.com>"
+  ],
+  "description": "Web app providing a GUI for the car detection project.",
+  "main": "",
+  "moduleType": [],
+  "keywords": [
+    "computer-vision",
+    "machine-learning",
+    "object-detection"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "react": "^0.14.7",
+    "bootstrap": "^3.3.6",
+    "fetch": "^0.11.0",
+    "es6-promise": "^3.0.2"
+  }
+}
