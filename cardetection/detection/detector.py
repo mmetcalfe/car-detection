@@ -1,5 +1,6 @@
 import os.path
 import cv2
+import numpy as np
 
 # TODO: Make abstract and provide OpenCV and TensorFlow implementations.
 # See: https://docs.python.org/2/library/abc.html
@@ -47,5 +48,7 @@ class ObjectDetector(object):
             for (x,y,w,h) in cars:
                 lw = max(2, img.shape[0] / 100)
                 cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),lw)
+        else:
+            cars = np.array([])
 
         return cars.tolist(), img

@@ -45,6 +45,7 @@ var Loader = require('react-loader');
 var Select = require('react-select');
 var _ = require('lodash');
 
+// See: https://developer.mozilla.org/en-US/docs/Using_files_from_web_applications#Example_Using_object_URLs_to_display_images
 function fetchFile(url, data) {
     if (data === undefined) {
         return fetch(url)
@@ -234,6 +235,13 @@ var DetectorControl = React.createClass({
             performDetection = this.state.autoDetectEnabled
         }
 
+        var invalid = !this.state.imageDir;
+        invalid = invalid | (performDetection && !this.state.detectorDir);
+        if (invalid) {
+            console.log('Error: Detector and/or Test set are invalid.');
+            return Promise.resolve();
+        }
+
         this.setState({'loaded': false})
         args = {
             'currentImgIndex': this.state.currentImgIndex,
@@ -295,6 +303,9 @@ var DetectorControl = React.createClass({
     detectButtonClicked: function() {
         return this.updatePreviewState({'performDetection': true})
     },
+    autoDetectChanged: function() {
+        return this.setState({'autoDetectEnabled': !this.state.autoDetectEnabled})
+    },
     render: function() {
         return (
         <div>
@@ -302,6 +313,7 @@ var DetectorControl = React.createClass({
                 onDetectorChanged={this.changeDetector}
                 onImageDirectoryChanged={this.changeImageDirectory}
             />
+{/*
 <nav className="navbar navbar-default">
   <div className="container-fluid">
     <div className="navbar-header">
@@ -321,6 +333,25 @@ var DetectorControl = React.createClass({
     </div>
   </div>
 </nav>
+*/}
+            <form className='row'>
+                <div className='col-sm-3'>
+                    <button type="button" className="btn btn-primary btn-block" onClick={this.detectButtonClicked}>
+                        <span className="glyphicon glyphicon-search"></span> Detect Cars
+                    </button>
+                </div>
+                <div className='col-sm-2 checkbox'>
+                    <label>
+                      <input type="checkbox" checked={this.state.autoDetectEnabled} onChange={this.autoDetectChanged}/> Auto-detect
+                    </label>
+                </div>
+                <div className='col-sm-4'>
+                    <p>{this.state.currentImgPath}</p>
+                </div>
+                <div className='col-sm-3'>
+                    <p>{this.state.detections.length} cars detected</p>
+                </div>
+            </form>
             <nav>
               <ul className="pager">
                 <li className="previous" onClick={this.moveToPreviousImage}><a href="javascript:;"><span aria-hidden="true">&larr;</span> Previous Image</a></li>
