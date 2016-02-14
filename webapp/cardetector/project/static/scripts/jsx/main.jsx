@@ -179,7 +179,7 @@ var DetectorControl = React.createClass({
             currentImgIndex: null,
             currentImgPath: null,
             currentImgUrl: null,
-            detections: null,
+            detections: [],
         }
     },
     getInitialState: function() {
@@ -225,13 +225,21 @@ var DetectorControl = React.createClass({
         //     }.bind(this)
         // );
     },
-    updatePreviewState: function() {
+    updatePreviewState: function(options) {
+        performDetection = undefined
+        if (options !== undefined && options['performDetection']) {
+            performDetection = options['performDetection']
+        }
+        if (performDetection === undefined) {
+            performDetection = this.state.autoDetectEnabled
+        }
+
         this.setState({'loaded': false})
         args = {
             'currentImgIndex': this.state.currentImgIndex,
             'imageDir': this.state.imageDir,
             'detectorDir': this.state.detectorDir,
-            'autoDetectEnabled': this.state.autoDetectEnabled,
+            'performDetection': performDetection,
         }
 
         // Get the new preview state:
@@ -285,7 +293,7 @@ var DetectorControl = React.createClass({
         this.modifyImageIndex(-1, this.updatePreviewState)
     },
     detectButtonClicked: function() {
-        console.log('detectButtonClicked')
+        return this.updatePreviewState({'performDetection': true})
     },
     render: function() {
         return (
@@ -294,7 +302,25 @@ var DetectorControl = React.createClass({
                 onDetectorChanged={this.changeDetector}
                 onImageDirectoryChanged={this.changeImageDirectory}
             />
-            <button className="btn btn-primary" onClick={this.detectButtonClicked}>Detect Cars</button>
+<nav className="navbar navbar-default">
+  <div className="container-fluid">
+    <div className="navbar-header">
+      <button type="button" className="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+        <span className="sr-only">Toggle navigation</span>
+        <span className="icon-bar"></span>
+        <span className="icon-bar"></span>
+        <span className="icon-bar"></span>
+      </button>
+      <button className="btn btn-primary navbar-btn" onClick={this.detectButtonClicked}>Detect Cars</button>
+    </div>
+    <div className="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul className="nav navbar-nav">
+        <li className="active"><p className="navbar-text">Image: {this.state.currentImgPath}</p></li>
+        <li className="active"><p className="navbar-text">{this.state.detections.length} cars detected</p></li>
+      </ul>
+    </div>
+  </div>
+</nav>
             <nav>
               <ul className="pager">
                 <li className="previous" onClick={this.moveToPreviousImage}><a href="javascript:;"><span aria-hidden="true">&larr;</span> Previous Image</a></li>
