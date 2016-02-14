@@ -43,6 +43,7 @@ var React = require('react');
 var ReactDOM = require('react-dom');
 var Loader = require('react-loader');
 var Select = require('react-select');
+var _ = require('lodash');
 
 function fetchJson(url, data) {
     if (data === undefined) {
@@ -64,27 +65,21 @@ function fetchJson(url, data) {
     }
 }
 
-var DetectorControl = React.createClass({
+var DetectorSettingsPanel = React.createClass({
     getInitialState: function() {
         return {
-            // Detector config:
-            imageDir: null,
-            detectorDir: null,
-            autoDetectEnabled: null,
-
-            // Extra:
-            numParkingSpaces: null,
-
-            // State cache (the true state is on the server):
-            numImages: null,
-            currentImgIndex: null,
-            currentImgPath: null,
-            currentImg: null,
-            detections: null,
-            loaded: true,
+            imageDirValue: undefined,
+            detectorDirValue: undefined,
         };
     },
-
+    onDetectorChanged: function(input) {
+        this.setState({'detectorDirValue': input})
+        this.props.onDetectorChanged(input)
+    },
+    onImageDirectoryChanged: function(input) {
+        this.setState({'imageDirValue': input})
+        this.props.onImageDirectoryChanged(input)
+    },
     getDetectorOptions: function(input) {
         return fetchJson('/_detector_directories')
         .then(function(json) {
@@ -97,7 +92,79 @@ var DetectorControl = React.createClass({
             return {options: json['image_directories']}
         })
     },
+    render: function() {
+        // Note: Newer versions of react-select use the following syntax:
+        // <Select.Async
+        //     name='imageDir-select'
+        //     loadOptions={this.getImageDirectoryOptions}
+        //     onChange={this.changeImageDirectory}
+        // />
+        return (
+        <div className="panel panel-default">
+            <div className="panel-heading">
+                <h3 className="panel-title">Settings</h3>
+            </div>
+            <div className="panel-body">
+            {/* Forms reference: http://bootstrapdocs.com/v3.3.6/docs/css/#forms */}
+            <form className="form-horizontal">
+            <div className="form-group">
+              <label className="col-sm-2 control-label">Detector</label>
+              <div className="col-sm-10">
+              <Select
+                  name='detector-select'
+                  value={this.state.detectorDirValue}
+                  asyncOptions={this.getDetectorOptions}
+                  onChange={this.onDetectorChanged}
+              />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="col-sm-2 control-label">Test set</label>
+              <div className="col-sm-10">
+                <Select
+                    name='imageDir-select'
+                    value={this.state.imageDirValue}
+                    asyncOptions={this.getImageDirectoryOptions}
+                    onChange={this.onImageDirectoryChanged}
+                />
+              </div>
+            </div>
+            </form>
+            </div>
+        </div>
+        );
+    }
+});
 
+var DetectorControl = React.createClass({
+    getInitialPreviewState: function() {
+        return {
+            numImages: null,
+            currentImgIndex: null,
+            currentImgPath: null,
+            currentImg: null,
+            detections: null,
+        }
+    },
+    getInitialState: function() {
+        var previewState = this.getInitialPreviewState();
+        var state = {
+            // Detector config:
+            imageDir: null,
+            detectorDir: null,
+            autoDetectEnabled: null,
+
+            // Extra:
+            numParkingSpaces: null,
+            loaded: true,
+        };
+
+        // Merge the state: http://stackoverflow.com/a/171256/3622526
+        for (var attrname in previewState) {
+            state[attrname] = previewState[attrname];
+        }
+        return state
+    },
     componentDidMount: function() {
         // this.setState({liked: !this.state.liked});
         // $.getJSON('/_add_numbers', {
@@ -122,62 +189,66 @@ var DetectorControl = React.createClass({
         //     }.bind(this)
         // );
     },
-
+    updatePreviewState: function() {
+        this.setState({'loaded': false})
+        args = {
+            'currentImgIndex': this.state.currentImgIndex,
+            'imageDir': this.state.imageDir,
+            'detectorDir': this.state.detectorDir,
+            'autoDetectEnabled': this.state.autoDetectEnabled,
+        }
+        return fetchJson('/_update_preview_state', args)
+        .then(function(json) {
+            var previewKeys = Object.keys(this.getInitialPreviewState())
+            var previewState = _.pick(json, previewKeys)
+            this.setState(previewState)
+            this.setState({'loaded': true})
+        }.bind(this))
+        .catch(function(error) {
+            this.setState({'loaded': true})
+            console.log('updatePreviewState, Request failed:', error);
+        }.bind(this))
+    },
     changeDetector: function(value) {
         console.log('changeDetector', value)
+        this.setState({'detectorDir': value}, this.updatePreviewState)
     },
     changeImageDirectory: function(value) {
         console.log('changeImageDirectory', value)
+        this.setState({'imageDir': value})
+        this.setState(this.getInitialPreviewState(), this.updatePreviewState)
+    },
+    modifyImageIndex: function(val, func) {
+        num = this.state.numImages
+        index = this.state.currentImgIndex + val
+        index = (index + num) % num
+        this.setState({'currentImgIndex': index}, func)
     },
     moveToNextImage: function() {
         console.log('moveToNextImage')
+        this.modifyImageIndex(1, this.updatePreviewState)
     },
     moveToPreviousImage: function() {
         console.log('moveToPreviousImage')
+        this.modifyImageIndex(-1, this.updatePreviewState)
     },
     detectButtonClicked: function() {
         console.log('detectButtonClicked')
     },
     render: function() {
-        // Note: Newer versions of react-select use the following syntax:
-        // <Select.Async
-        //     name='imageDir-select'
-        //     loadOptions={this.getImageDirectoryOptions}
-        //     onChange={this.changeImageDirectory}
-        // />
         return (
         <div>
-            <div className="panel panel-default">
-                <div className="panel-heading">
-                    <h3 className="panel-title">Settings</h3>
-                </div>
-                <div className="panel-body">
-                {/* Forms reference: http://bootstrapdocs.com/v3.3.6/docs/css/#forms */}
-                <form className="form-horizontal">
-                <div className="form-group">
-                  <label className="col-sm-2 control-label">Detector</label>
-                  <div className="col-sm-10">
-                  <Select
-                      name='detector-select'
-                      asyncOptions={this.getDetectorOptions}
-                      onChange={this.changeDetector}
-                  />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="col-sm-2 control-label">Test set</label>
-                  <div className="col-sm-10">
-                    <Select
-                        name='imageDir-select'
-                        asyncOptions={this.getImageDirectoryOptions}
-                        onChange={this.changeImageDirectory}
-                    />
-                  </div>
-                </div>
-                </form>
-                </div>
-            </div>
+            <DetectorSettingsPanel
+                onDetectorChanged={this.changeDetector}
+                onImageDirectoryChanged={this.changeImageDirectory}
+            />
             <div className="jumbotron">
+                <Loader loaded={this.state.loaded}>
+                    <img
+                        src={window.URL.createObjectURL(this.state.currentImgPath)}
+                        onload={window.URL.revokeObjectURL(this.src)}
+                    />
+                </Loader>
             </div>
             <nav>
               <ul className="pager">
@@ -186,8 +257,6 @@ var DetectorControl = React.createClass({
               </ul>
             </nav>
             <button className="btn btn-primary" onClick={this.detectButtonClicked}>Detect Cars</button>
-            <Loader loaded={this.state.loaded}>
-            </Loader>
         </div>
         );
     }

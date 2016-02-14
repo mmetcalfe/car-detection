@@ -32,5 +32,29 @@ def image_directories():
     config_yaml = fileutils.load_yaml_file('detector-config.yaml')
     return jsonify(image_directories=config_yaml['image_directories'])
 
+@app.route('/_update_preview_state', methods=['POST'])
+def update_preview_state():
+    """Return the new state of the UI given the new settings."""
+    print 'update_preview_state'
+    # Get the inputs:
+    currentImgIndex = request.json['currentImgIndex']
+    imageDir = request.json['imageDir']
+    detectorDir = request.json['detectorDir']
+    autoDetectEnabled = request.json['autoDetectEnabled']
+
+    print 'currentImgIndex:', currentImgIndex
+    print 'imageDir:', imageDir
+    print 'detectorDir:', detectorDir
+    print 'autoDetectEnabled:', autoDetectEnabled
+
+    # Return the new preview state:
+    return jsonify(
+        numImages=None,
+        currentImgIndex=None,
+        currentImgPath=None,
+        currentImg=None,
+        detections=None
+    )
+
 if __name__ == '__main__':
     app.run(debug=True)
