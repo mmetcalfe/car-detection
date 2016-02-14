@@ -45,6 +45,28 @@ var Loader = require('react-loader');
 var Select = require('react-select');
 var _ = require('lodash');
 
+function fetchFile(url, data) {
+    if (data === undefined) {
+        return fetch(url)
+        .then(function(response) {
+            return response.blob();
+        }).then(function(response) {
+            return URL.createObjectURL(response);
+        });
+    } else {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(function(response) {
+            return response.blob();
+        }).then(function(response) {
+            return URL.createObjectURL(response);
+        });
+    }
+}
+
 function fetchJson(url, data) {
     if (data === undefined) {
         return fetch(url)
@@ -136,13 +158,27 @@ var DetectorSettingsPanel = React.createClass({
     }
 });
 
+// Maintains a 16x9 aspect ratio.
+// See: http://stackoverflow.com/a/12121309/3622526
+var AspectContainer = React.createClass({
+    render: function() {
+        return (
+            <div className="aspect16-9wrapper">
+                <div className="aspect-inner">
+                    {this.props.children}
+                </div>
+            </div>
+        );
+    }
+});
+
 var DetectorControl = React.createClass({
     getInitialPreviewState: function() {
         return {
             numImages: null,
             currentImgIndex: null,
             currentImgPath: null,
-            currentImg: null,
+            currentImgUrl: null,
             detections: null,
         }
     },
@@ -152,7 +188,7 @@ var DetectorControl = React.createClass({
             // Detector config:
             imageDir: null,
             detectorDir: null,
-            autoDetectEnabled: null,
+            autoDetectEnabled: false,
 
             // Extra:
             numParkingSpaces: null,
@@ -197,6 +233,9 @@ var DetectorControl = React.createClass({
             'detectorDir': this.state.detectorDir,
             'autoDetectEnabled': this.state.autoDetectEnabled,
         }
+
+        // Get the new preview state:
+        args['returnImage'] = false
         return fetchJson('/_update_preview_state', args)
         .then(function(json) {
             var previewKeys = Object.keys(this.getInitialPreviewState())
@@ -206,7 +245,20 @@ var DetectorControl = React.createClass({
         }.bind(this))
         .catch(function(error) {
             this.setState({'loaded': true})
-            console.log('updatePreviewState, Request failed:', error);
+            console.log('updatePreviewState fetchJson, Request failed:', error);
+        }.bind(this))
+        .then(function() {
+            // Get the new image:
+            args['returnImage'] = true
+            return fetchFile('/_update_preview_state', args)
+            .then(function(url) {
+                this.setState({'currentImgUrl': url})
+                this.setState({'loaded': true})
+            }.bind(this))
+            .catch(function(error) {
+                this.setState({'loaded': true})
+                console.log('updatePreviewState fetchFile, Request failed:', error);
+            }.bind(this))
         }.bind(this))
     },
     changeDetector: function(value) {
@@ -242,21 +294,26 @@ var DetectorControl = React.createClass({
                 onDetectorChanged={this.changeDetector}
                 onImageDirectoryChanged={this.changeImageDirectory}
             />
-            <div className="jumbotron">
-                <Loader loaded={this.state.loaded}>
-                    <img
-                        src={window.URL.createObjectURL(this.state.currentImgPath)}
-                        onload={window.URL.revokeObjectURL(this.src)}
-                    />
-                </Loader>
-            </div>
+            <button className="btn btn-primary" onClick={this.detectButtonClicked}>Detect Cars</button>
             <nav>
               <ul className="pager">
-                <li className="previous" onClick={this.moveToPreviousImage}><a href="#"><span aria-hidden="true">&larr;</span> Previous Image</a></li>
-                <li className="next" onClick={this.moveToNextImage}><a href="#">Next Image <span aria-hidden="true">&rarr;</span></a></li>
+                <li className="previous" onClick={this.moveToPreviousImage}><a href="javascript:;"><span aria-hidden="true">&larr;</span> Previous Image</a></li>
+                <li className="next" onClick={this.moveToNextImage}><a href="javascript:;">Next Image <span aria-hidden="true">&rarr;</span></a></li>
               </ul>
             </nav>
-            <button className="btn btn-primary" onClick={this.detectButtonClicked}>Detect Cars</button>
+            <div className="jumbotron">
+                <AspectContainer>
+                    <div className="img-container">
+                        <Loader loaded={this.state.loaded}>
+                            {/* See: http://bootstrapdocs.com/v3.3.6/docs/css/#images-responsive */}
+                            <img className="img-responsive center-block"
+                                src={this.state.currentImgUrl}
+                                onload={window.URL.revokeObjectURL(this.src)}
+                            />
+                        </Loader>
+                    </div>
+                </AspectContainer>
+            </div>
         </div>
         );
     }
