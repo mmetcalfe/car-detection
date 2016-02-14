@@ -335,20 +335,20 @@ var DetectorControl = React.createClass({
 </nav>
 */}
             <form className='row'>
-                <div className='col-sm-3'>
+                <div className='col-sm-3 col-xs-6'>
                     <button type="button" className="btn btn-primary btn-block" onClick={this.detectButtonClicked}>
                         <span className="glyphicon glyphicon-search"></span> Detect Cars
                     </button>
                 </div>
-                <div className='col-sm-2 checkbox'>
+                <div className='col-sm-2 col-xs-6 checkbox'>
                     <label>
                       <input type="checkbox" checked={this.state.autoDetectEnabled} onChange={this.autoDetectChanged}/> Auto-detect
                     </label>
                 </div>
-                <div className='col-sm-4'>
+                <div className='col-lg-5 col-md-4 col-sm-9 text-left'>
                     <p>{this.state.currentImgPath}</p>
                 </div>
-                <div className='col-sm-3'>
+                <div className='col-lg-2 col-md-3 col-sm-3 text-right'>
                     <p>{this.state.detections.length} cars detected</p>
                 </div>
             </form>
