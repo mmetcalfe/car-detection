@@ -46,7 +46,10 @@ def rectangles_from_cache_string(rects_str):
     return rects
 
 def crop_rectangle(img, pixel_rect):
-    cropped = img[pixel_rect.y1:pixel_rect.y2, pixel_rect.x1:pixel_rect.x2, :]
+    # Note: Need to add 1 to end coordinates because pixel rectangle corners are
+    # inclusive.
+    cropped = img[pixel_rect.y1:pixel_rect.y2+1, pixel_rect.x1:pixel_rect.x2+1, :]
+    # cropped = img[pixel_rect.y1:pixel_rect.y2, pixel_rect.x1:pixel_rect.x2, :]
     return cropped
 
 # save_opencv_bounding_box_info :: String -> Map String gm.PixelRectangle
@@ -100,13 +103,21 @@ def load_opencv_bounding_box_info_directory(bbinfo_dir, prefix='*', suffix='*'):
         global_info.update(info_cache)
     return global_info
 
-def resize_sample(sample, shape, use_interp=True):
+def resize_sample(sample, shape=None, use_interp=True, scale=None):
+    if (shape and scale) or (not shape and not scale):
+        raise ValueError('Must specify exactly one of shape or scale, but got shape=\'{}\', scale=\'{}\''.format(shape, scale))
+
     # Use INTER_AREA for shrinking and INTER_LINEAR for enlarging:
     interp = cv2.INTER_NEAREST
     if use_interp:
-        target_is_smaller = shape[1] < sample.shape[1] # targetWidth < sampleWidth
+        target_is_smaller = (shape and shape[1] < sample.shape[1]) or (scale and scale < 1) # targetWidth < sampleWidth
         interp = cv2.INTER_AREA if target_is_smaller else cv2.INTER_LINEAR
-    resized = cv2.resize(sample, (shape[1], shape[0]), interpolation=interp)
+
+    if shape:
+        resized = cv2.resize(sample, (shape[1], shape[0]), interpolation=interp)
+    else:
+        resized = cv2.resize(sample, None, fx=scale, fy=scale, interpolation=interp)
+
     return resized
 
 class RegionModifiers(object):
@@ -209,7 +220,7 @@ class ImageRegion(object):
 
         if not modifiers:
             # If there are no modifiers, simply crop and return the sample:
-            cropped = img[self.rect.y1:self.rect.y2, self.rect.x1:self.rect.x2, :]
+            cropped = crop_rectangle(img, self.rect)
             return cropped
         else:
             # Apply the modifiers:
@@ -239,7 +250,7 @@ class ImageRegion(object):
                 modified = cv2.warpAffine(modified, M, dims)
 
             # Crop and return the sample:
-            cropped = modified[mod_rect.y1:mod_rect.y2, mod_rect.x1:mod_rect.x2, :]
+            cropped = crop_rectangle(modified, mod_rect)
 
             # Apply xflip:
             if modifiers.xflip:

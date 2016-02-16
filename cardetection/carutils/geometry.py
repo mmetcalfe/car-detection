@@ -256,6 +256,8 @@ class PixelRectangle(np.ndarray):
         reg_h = int(reg_w / aspect)
         assert(abs(aspect - reg_w/float(reg_h)) < 0.2)
 
+        if w - reg_w <= 0:
+            print img_dims, (reg_w, reg_h)
         x1 = np.random.random_integers(0, w - reg_w, 1)
         y1 = np.random.random_integers(0, h - reg_h, 1)
         x2 = x1 + reg_w - 1
@@ -469,7 +471,7 @@ class PixelRectangle(np.ndarray):
     # Return the rectangle that would result if an image containing this
     # rectangle was scaled (along with the rectangle) from img_dims to have the
     # dimensions new_dims.
-    def scaleImage(self, img_dims, new_dims):
+    def scale_image(self, img_dims, new_dims):
         xs = new_dims[0] / float(img_dims[0])
         ys = new_dims[1] / float(img_dims[1])
 

@@ -98,10 +98,11 @@ def update_preview_state():
         if not (returnImage and detection_img_exists):
             validate_detector_directory(detectorDir, config_yaml)
 
-            detector = ObjectDetector.load_from_directory(detectorDir)
-            img = cv2.imread(current_img_path)
-            detections, img = detector.detect_objects_in_image(img)
-            cv2.imwrite(save_img_path, img)
+            # detector = ObjectDetector.load_from_directory(detectorDir)
+            with ObjectDetector(detectorDir) as detector:
+                img = cv2.imread(current_img_path)
+                detections, img = detector.detect_objects_in_image(img)
+                cv2.imwrite(save_img_path, img)
 
     previewState = jsonify({
         'numImages' : num_images,

@@ -44,7 +44,7 @@ class OpenCVAnnotator(object):
         def rectContains(r, pt):
             h, w = self.current_img.shape[:2]
             oh, ow = self.original_shape[:2]
-            r = r.scaleImage((ow, oh), (w,h))
+            r = r.scale_image((ow, oh), (w,h))
             return r.contains(pt)
 
         rects = filter(lambda r: not rectContains(r, pt), rects)
@@ -64,7 +64,7 @@ class OpenCVAnnotator(object):
             rect = rect.rotated_180((w,h))
 
         oh, ow = self.original_shape[:2]
-        rect = rect.scaleImage((w,h), (ow, oh))
+        rect = rect.scale_image((w,h), (ow, oh))
         return rect
 
     def add_rectangle_to_image(self, img_path, rect):
@@ -237,7 +237,7 @@ class OpenCVAnnotator(object):
         # Draw bounding boxes for current image:
         for rect in self.get_image_rectangles(self.current_path):
             oh, ow = self.original_shape[:2]
-            rect = rect.scaleImage((ow, oh), (w,h))
+            rect = rect.scale_image((ow, oh), (w,h))
             if self.flipped:
                 rect = rect.rotated_180((w,h))
 

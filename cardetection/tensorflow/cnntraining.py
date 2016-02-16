@@ -4,23 +4,23 @@ import input_data
 
 # Variable creation convenience functions:
 
-def weight_variable(shape):
-    initial = tf.truncated_normal(shape, stddev=0.1)
+def weight_variable(shape, name=None):
+    initial = tf.truncated_normal(shape, stddev=0.1, name=name)
     return tf.Variable(initial)
 
-def bias_variable(shape):
-    initial = tf.constant(0.1, shape=shape)
+def bias_variable(shape, name=None):
+    initial = tf.constant(0.1, shape=shape, name=name)
     return tf.Variable(initial)
 
 # Convolution and pooling convenience functions:
 # Note: Boundaries, stride size, and pooling type can be changed.
 
-def conv2d(x, W):
-    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+def conv2d(x, W, name=None):
+    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME', name=name)
 
-def max_pool_2x2(x):
+def max_pool_2x2(x, name=None):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
-                          strides=[1, 2, 2, 1], padding='SAME')
+                          strides=[1, 2, 2, 1], padding='SAME', name=name)
 
 # From: http://stackoverflow.com/a/33816991/3622526
 # See also: https://github.com/tensorflow/tensorflow/issues/908
@@ -62,6 +62,7 @@ def build_model(x, window_dims):
     img_pixels = img_w*img_h*num_col_chnls
 
     x_col_image = tf.reshape(x, [-1, img_h, img_w, num_col_chnls])
+
     x_image = tf.image.rgb_to_grayscale(x_col_image)
     print 'x_col_image.get_shape()', x_col_image.get_shape()
     print 'x_image.get_shape()', x_image.get_shape()
@@ -72,22 +73,22 @@ def build_model(x, window_dims):
 
     # Define weights and bias terms for layer 1:
     num_out_chnls_1 = 32
-    W_conv1 = weight_variable([patch_size, patch_size, num_in_chnls_1, num_out_chnls_1])
+    W_conv1 = weight_variable([patch_size, patch_size, num_in_chnls_1, num_out_chnls_1], name='W_conv1')
 
-    b_conv1 = bias_variable([num_out_chnls_1])
+    b_conv1 = bias_variable([num_out_chnls_1], name='b_conv1')
     # Convolve x_image with weight tensor, add bias, apply ReLU, then max pool:
-    h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-    h_pool1 = max_pool_2x2(h_conv1)
+    h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1, name='h_conv1')
+    h_pool1 = max_pool_2x2(h_conv1, name='h_pool1')
 
     print 'h_pool1.get_shape()', h_pool1.get_shape()
 
     # Second convolutional layer:
     num_out_chnls_2 = 64
-    W_conv2 = weight_variable([patch_size, patch_size, num_out_chnls_1, num_out_chnls_2])
-    b_conv2 = bias_variable([num_out_chnls_2])
+    W_conv2 = weight_variable([patch_size, patch_size, num_out_chnls_1, num_out_chnls_2], name='W_conv2')
+    b_conv2 = bias_variable([num_out_chnls_2], name='b_conv2')
 
-    h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-    h_pool2 = max_pool_2x2(h_conv2)
+    h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2, name='h_conv2')
+    h_pool2 = max_pool_2x2(h_conv2, name='h_pool2')
 
     print 'h_pool2.get_shape()', h_pool2.get_shape()
 
@@ -102,40 +103,40 @@ def build_model(x, window_dims):
     reduced_img_w = int(h_pool2_shape[2])
     num_dense_neurons = 1024
     reduced_img_pixels = reduced_img_h*reduced_img_w
-    W_fc1 = weight_variable([reduced_img_pixels*num_out_chnls_2, num_dense_neurons])
-    b_fc1 = bias_variable([num_dense_neurons])
+    W_fc1 = weight_variable([reduced_img_pixels*num_out_chnls_2, num_dense_neurons], name='W_fc1')
+    b_fc1 = bias_variable([num_dense_neurons], name='b_fc1')
 
-    h_pool2_flat = tf.reshape(h_pool2, [-1, reduced_img_pixels*num_out_chnls_2])
-    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+    h_pool2_flat = tf.reshape(h_pool2, [-1, reduced_img_pixels*num_out_chnls_2], name='h_pool2_flat')
+    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1, name='h_fc1')
 
     # Dropout:
-    keep_prob = tf.placeholder("float")
-    h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+    keep_prob = tf.placeholder("float", name='keep_prob')
+    h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob, name='h_fc1_drop')
 
     # Readout layer:
     num_classes = 2
-    W_fc2 = weight_variable([1024, num_classes])
-    b_fc2 = bias_variable([num_classes])
+    W_fc2 = weight_variable([1024, num_classes], name='W_fc2')
+    b_fc2 = bias_variable([num_classes], name='b_fc2')
 
-    y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+    y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2, name='y_conv')
 
     # Add summary ops to collect data
-    w_hist = tf.histogram_summary("W_conv1", W_conv1)
-    b_hist = tf.histogram_summary("b_conv1", b_conv1)
-    y_hist = tf.histogram_summary("y_conv", y_conv)
+    w_hist = tf.histogram_summary("W_conv1", W_conv1, name='w_hist')
+    b_hist = tf.histogram_summary("b_conv1", b_conv1, name='b_hist')
+    y_hist = tf.histogram_summary("y_conv", y_conv, name='y_hist')
 
     # Image summaries:
-    tf.image_summary('input', x_image, max_images=3)
+    tf.image_summary('input', x_image, max_images=10)
 
     # W_conv1 is (5, 5, 1, 32) == (h, w, 1, channels)
     # Transpose to (1, h, w, channels)
-    W_conv1_transp = tf.transpose(W_conv1,(2,0,1,3))
-    tf.image_summary('filters W_conv1_transp', conv_mosaic(W_conv1_transp), max_images=3)
-    tf.image_summary('filter_results h_conv1', conv_mosaic(h_conv1), max_images=3)
+    W_conv1_transp = tf.transpose(W_conv1,(2,0,1,3), name='W_conv1_transp')
+    tf.image_summary('#1 filters W_conv1_transp', conv_mosaic(W_conv1_transp), max_images=1)
+    tf.image_summary('#2 filter_results h_conv1', conv_mosaic(h_conv1), max_images=1)
 
-    W_conv2_transp = tf.transpose(W_conv2,(2,0,1,3))
-    tf.image_summary('filters W_conv2_transp', conv_mosaic(W_conv2_transp), max_images=3)
-    tf.image_summary('filter_results h_conv2', conv_mosaic(h_conv2), max_images=3)
+    W_conv2_transp = tf.transpose(W_conv2,(2,0,1,3), name='W_conv2_transp')
+    tf.image_summary('#3 filters W_conv2_transp', conv_mosaic(W_conv2_transp), max_images=1)
+    tf.image_summary('#4 filter_results h_conv2', conv_mosaic(h_conv2), max_images=1)
 
     return y_conv, keep_prob
 
@@ -156,10 +157,12 @@ if __name__ == '__main__':
     # Set up the data source:
     datasets = input_data.initialise_data_sets(
         FLAGS.config_yaml,
-        pos_frac=0.2,
+        pos_frac=0.5,
         test_pos_frac=1.0
     )
-    feature_batch, label_batch = datasets.train.batch_generators(50)
+    feature_batch, label_batch = datasets.train.batch_generators(250)
+    summary_interval = 5
+    checkpoint_interval = 50
 
     # Build the model:
     y_conv, keep_prob = build_model(
@@ -178,7 +181,8 @@ if __name__ == '__main__':
         ce_summ = tf.scalar_summary("cross entropy", cross_entropy)
 
     with tf.name_scope("train") as scope:
-        train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+        global_step = tf.Variable(0, name="global_step", trainable=False)
+        train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy, global_step=global_step)
 
     with tf.name_scope("test") as scope:
         correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
@@ -206,16 +210,19 @@ if __name__ == '__main__':
     print 'checkpoint_dir', checkpoint_dir
     print 'checkpoint_prefix', checkpoint_prefix
 
-    if False:
-        # Restore the latest checkpoint:
-        latest_ckpt = tf.train.latest_checkpoint(checkpoint_dir)
+    # Restore the latest checkpoint:
+    latest_ckpt = tf.train.latest_checkpoint(checkpoint_dir)
+    if latest_ckpt:
+        # latest_ckpt = tf.train.latest_checkpoint(checkpoint_dir)
         print 'latest_ckpt', latest_ckpt
         print 'get_checkpoint_state', tf.train.get_checkpoint_state(checkpoint_dir)
         saver.restore(sess, latest_ckpt)
-    else:
+
+    if True:
         print 'create_threads'
         # enqueue_threads = datasets.train.qrunner.create_threads(sess, coord=datasets.train.coord, start=True)
         datasets.train.start_threads(sess, num_threads=7)
+        # datasets.train.start_threads(sess, num_threads=1)
 
         # One process, 100 steps, batch size 50:
         # real	5m29.924s
@@ -239,12 +246,14 @@ if __name__ == '__main__':
 
         # Train the classifier:
         try:
-            for i in range(100):
+            i = sess.run(global_step)
+            while i < 100000:
+                i = sess.run(global_step)
             # for i in range(20000):
                 if datasets.train.should_stop():
                     break
 
-                if (i+1)%10 == 0:  # Record summary data, and the accuracy
+                if (i+1)%summary_interval == 0:  # Record summary data, and the accuracy
                     print 'Recording summary data, and accuracy...'
                     # batch_xs, batch_ys = datasets.test.next_batch(50)
                     # # feed = {x: datasets.test.images, y_: datasets.test.labels, keep_prob: 1.0}
@@ -257,7 +266,7 @@ if __name__ == '__main__':
                     # print 'Accuracy at step {}: {}.'.format(i, acc)
                     print 'Training accuracy at step {}: {}.'.format(i, acc)
 
-                if (i+1)%100 == 0:
+                if (i+1)%checkpoint_interval == 0:
                     print 'Saving checkpoint...'
                     # train_accuracy = accuracy.eval(session=sess,feed_dict={
                     # x: batch_xs, y_: batch_ys, keep_prob: 1.0})

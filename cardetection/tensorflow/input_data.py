@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 import itertools
 import random
-import cardetection.detection.save_samples as save_samples
+import cardetection.detection.generate_samples as generate_samples
 import cardetection.carutils.fileutils as fileutils
 from progress.bar import Bar as ProgressBar
 
@@ -34,23 +34,28 @@ def batch_shuffle(gen, batch_size=10000):
             yield reg
 
 class DataGenerator(object):
-    def __init__(self, config_yaml_fname, pos_frac):
+    def __init__(self, config_yaml_fname, pos_frac, exclusion_frac=0.1):
         config_yaml = fileutils.load_yaml_file(config_yaml_fname)
-        self.pos_reg_gen = save_samples.load_positive_region_generator(config_yaml)
-        self.neg_reg_gen = batch_shuffle(save_samples.load_negative_region_generator(config_yaml))
+        self.pos_reg_gen = generate_samples.load_positive_region_generator(config_yaml)
+        self.neg_reg_gen = batch_shuffle(generate_samples.load_negative_region_generator(config_yaml))
+        self.exc_reg_gen = batch_shuffle(generate_samples.load_exclusion_region_generator(config_yaml))
         self.window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
         self.pos_frac = pos_frac
+        self.exc_frac = exclusion_frac
 
     # Loads batches in a format compatible with the tensorflow MNIST example.
     def next_batch(self, batch_size):
         """Return the next `batch_size` examples from this data set."""
 
         pos_num = int(batch_size*self.pos_frac)
-        neg_num = batch_size - pos_num
+        total_neg_num = batch_size - pos_num
+        exc_num = int(total_neg_num*self.exc_frac)
+        neg_num = total_neg_num - exc_num
 
         pos_regions = list(itertools.islice(self.pos_reg_gen, 0, pos_num))
         neg_regions = list(itertools.islice(self.neg_reg_gen, 0, neg_num))
-        regions = pos_regions + neg_regions
+        exc_regions = list(itertools.islice(self.exc_reg_gen, 0, exc_num))
+        regions = pos_regions + neg_regions + exc_regions
 
         # Create a tensor containing all images:
         w, h = self.window_dims
@@ -74,7 +79,7 @@ class DataGenerator(object):
         # Create one-hot labels:
         pos_labels = np.zeros((pos_num, 2), dtype=np.float32)
         pos_labels[:,0] = 1
-        neg_labels = np.zeros((neg_num, 2), dtype=np.float32)
+        neg_labels = np.zeros((total_neg_num, 2), dtype=np.float32)
         neg_labels[:,1] = 1
         labels = np.row_stack([pos_labels, neg_labels])
 
@@ -82,7 +87,8 @@ class DataGenerator(object):
             "images.shape: %s labels.shape: %s" % (images.shape, labels.shape)
         )
 
-        # Shuffle the data
+        # Shuffle the data. This is done last to improve cache performance in
+        # load_cropped_resized_sample.
         perm = np.arange(batch_size)
         np.random.shuffle(perm)
         images = images[perm]
@@ -152,6 +158,7 @@ class DataSet(object):
         )
 
         # self.tf_enqueue_op = self.fifoq.enqueue([self.feature_input, self.label_input])
+        # self.feature_image = tf.placeholder(tf.float32, shape=[img_h, img_w, depth])
         self.feature_input = tf.placeholder(tf.float32, shape=[None, feature_shape[0]])
         self.label_input = tf.placeholder(tf.float32, shape=[None, label_shape[0]])
         self.tf_enqueue_op = self.fifoq.enqueue_many([self.feature_input, self.label_input])
@@ -275,6 +282,29 @@ class DataSet(object):
     def batch_generators(self, batch_size):
         print 'dequeue_many'
         feature_batch, label_batch = self.fifoq.dequeue_many(batch_size)
+
+        # # Apply per_image_whitening:
+        # img_w, img_h = self.window_dims
+        # num_col_chnls = 3
+        # img_pixels = img_w*img_h*num_col_chnls
+        # feature_shape = [img_pixels]
+        # whitening_queue = tf.FIFOQueue(
+        #     capacity=batch_size,
+        #     dtypes=[tf.float32],
+        #     shapes=[feature_shape]
+        # )
+        # whitened_queue = tf.FIFOQueue(
+        #     capacity=batch_size,
+        #     dtypes=[tf.float32],
+        #     shapes=[feature_shape]
+        # )
+        # whitening_enqueue = whitening_queue.enqueue_many(feature_batch)
+        # x_col_image = tf.reshape(whitening_queue.dequeue(), [img_h, img_w, num_col_chnls])
+        # whitened = tf.image.per_image_whitening(x_col_image)
+        # whitened_flat = tf.reshape(whitened, [img_pixels])
+        # whitened_enqueue = whitened_queue.enqueue(whitened_flat)
+        # whitened_batch = whitened_queue.dequeue_many(batch_size)
+
         print feature_batch, label_batch
         # Note: These are tensorflow objects that will automatically refill after
         # each use.

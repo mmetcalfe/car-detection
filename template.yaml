@@ -93,11 +93,21 @@ dataset:
         # Input and output directories for cardetection.detection.save_samples:
         generation:
             input:
+                # Sample positive regions specified in *__bbinfo.dat files in
+                # the bbinfo directory.
                 positive:
                     - /Users/mitchell/data/car-detection/maths
                     - /Users/mitchell/data/car-detection/shopping
                     - /Users/mitchell/data/car-detection/university
-                background: /Users/mitchell/data/car-detection/shopping
+
+                # Sample random negative regions.
+                background: /Users/mitchell/google-drive/honours/vision-paper/code/samples/background_raw
+
+                # Sample only negative regions that don't overlap the provided
+                # exclusion regions specified in *__exclusion.dat files in
+                # the bbinfo directory. Ignore images for which exclusion
+                # information is not provided.
+                exclusion: /Users/mitchell/data/car-detection/shopping
             output:
                 positive: /Users/mitchell/data/car-detection/generated/positive
                 negative: /Users/mitchell/data/car-detection/generated/negative
@@ -142,12 +152,12 @@ training:
         # window_dims: ['224', '128'] # aspect 1.75
         # window_dims: ['112', '64'] # aspect 1.75
         # window_dims: ['42', '24'] # aspect 1.75
-        window_dims: ['28', '16'] # aspect 1.75
+        # window_dims: ['28', '16'] # aspect 1.75
 
         # window_dims: ['192', '128'] # aspect 1.5
         # window_dims: ['144', '96'] # aspect 1.5
         # window_dims: ['96', '64'] # aspect 1.5
-        # window_dims: ['48', '32'] # aspect 1.5
+        window_dims: ['48', '32'] # aspect 1.5
 
         # window_dims: ['176', '128'] # aspect 1.375
         # window_dims: ['128', '96'] # aspect 1.333333
