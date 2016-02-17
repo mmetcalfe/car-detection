@@ -15,6 +15,19 @@ from cardetection.detection.detector import ObjectDetector
 
 app = flask.Flask(__name__)
 
+# Generate secret key for security.
+# Note: This will invalidate sessions if the app restarts, but that doesn't
+# matter for this research/demo app.
+# See: http://stackoverflow.com/q/27287391/3622526
+# See: http://flask.pocoo.org/docs/0.10/quickstart/#sessions
+import os
+app.secret_key = os.urandom(24)
+app.debug = False # Debug must be false if we're serving to the Internet.
+
+# TODO: Consider using the methods here if more configuration is required in the
+# future.
+# http://flask.readthedocs.org/en/0.6/config/
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -122,4 +135,7 @@ def update_preview_state():
         return previewState
 
 if __name__ == '__main__':
+    # Start a local development server.
+    # Note: This is not run when serving on apache.
+    # http://flask.pocoo.org/docs/0.10/deploying/mod_wsgi/#creating-a-wsgi-file
     app.run(debug=True)
