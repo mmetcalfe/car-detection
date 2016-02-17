@@ -16,8 +16,8 @@ image_directories:
       value: /var/www/car-detection/data/images/shopping
     - label: Engineering
       value: /var/www/car-detection/data/images/university
-    - label: ImageNet Cars
-      value: /var/www/car-detection/data/images/imagenet/test
+    # - label: ImageNet Cars
+    #   value: /var/www/car-detection/data/images/imagenet/test
     # - label: KITTI
     #   value: /var/www/car-detection/data/images/kitti/testing/image_2
     # - label: ImageNet Background

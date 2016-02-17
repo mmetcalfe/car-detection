@@ -257,7 +257,7 @@ var DetectorControl = React.createClass({
             var previewKeys = Object.keys(this.getInitialPreviewState())
             var previewState = _.pick(json, previewKeys)
             this.setState(previewState)
-            this.setState({'loaded': true})
+            // this.setState({'loaded': true})
         }.bind(this))
         .catch(function(error) {
             this.setState({'loaded': true})
