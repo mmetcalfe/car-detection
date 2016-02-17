@@ -52,7 +52,7 @@ Run in webapp/cardetector:
 
 Note: The app structure was based on https://realpython.com/blog/python/the-ultimate-flask-front-end/
 
-### Provision DigitalOcean Ubuntu 15.10 x64 server:
+### Deploy web-app to a DigitalOcean Ubuntu 15.10 x64 server:
 
 Note: The droplet tested had the following specs.
 $20/mo, 2GB Ram, 2 CPUs, 40GB SSD Disk, 3 TB Transfer, New York 2, Ubuntu 15.10 x64
@@ -91,10 +91,14 @@ Install the following:
     # git clone https://github.com/mmetcalfe/car-detection
     # cd /var/www/car-detection
     # pip install -r requirements.txt
-    # cd /var/www/car-detection/webapp/cardetector
     # npm install -g bower
+    # npm install -g gulp
+
+    # # Install dependencies and build the app
+    # cd /var/www/car-detection/webapp/cardetector
     # npm install
     # bower install --allow-root
+    # gulp # (just kill with Ctrl+C once it's done)
 
 Increase the swap space of the droplet to allow tensorflow to build without g++
 crashing.
@@ -151,6 +155,26 @@ See also: http://flask.pocoo.org/docs/0.10/deploying/mod_wsgi/#creating-a-wsgi-f
     # sudo cp cardetector.conf /etc/apache2/sites-available/
     # a2ensite cardetector # Enable the virtual host
     # service apache2 restart # Restart Apache to apply changes
+
+Note: Make sure to change the ServerName in `cardetector.conf` to the ip address of your droplet.
+
+### Upload image data to the website:
+
+Assume we have a local directory `images` containing images:
+
+    $ tar cf imgdata.tar images
+    $ scp imgdata.tar root@162.243.238.167:~/
+
+Then on the server:
+
+    # mkdir /var/www/car-detection/data/images/
+    # mv imgdata.tar /var/www/car-detection/data/images/
+    # cd /var/www/car-detection/data/images/
+    # tar xf imgdata.tar
+    # # Consider changing permissions.
+    # # chmod -R 644 images
+    # mv images/* . # Move contents of archive into current directory
+
 
 ## To train a cascade classifier:
 
