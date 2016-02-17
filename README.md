@@ -180,6 +180,12 @@ Then on the server:
     # # chmod -R 644 images
     # mv images/* . # Move contents of archive into current directory
 
+Create the cache directory for caching detection images:
+
+    # cd /var/www/car-detection/webapp/cardetector
+    # mkdir cardetector/static/cache
+    # chown www-data cardetector/static/cache
+
 
 ## To train a cascade classifier:
 
