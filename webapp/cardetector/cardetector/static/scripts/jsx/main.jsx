@@ -345,10 +345,10 @@ var DetectorControl = React.createClass({
                       <input type="checkbox" checked={this.state.autoDetectEnabled} onChange={this.autoDetectChanged}/> Auto-detect
                     </label>
                 </div>
-                <div className='col-lg-5 col-md-4 col-sm-9 text-left'>
+                <div className='col-lg-5 col-md-4 col-sm-9 col-xs-12 text-left'>
                     <p>{this.state.currentImgPath}</p>
                 </div>
-                <div className='col-lg-2 col-md-3 col-sm-3 text-right'>
+                <div className='col-lg-2 col-md-3 col-sm-3 col-xs-12 text-right'>
                     <p>{this.state.detections.length} cars detected</p>
                 </div>
             </form>
