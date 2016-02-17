@@ -23,7 +23,7 @@ def image_pyramid(img, scale_factor=1.1, min_dims=(32, 32)):
         img = utils.resize_sample(img, scale=1.0/scale_factor)
 
 
-def sliding_window_generator(img, window_dims=(32, 32), scale_factor=1.1, strides=(8, 8)):
+def sliding_window_generator(img, window_dims=(32, 32), scale_factor=1.1, strides=(8, 8), only_rects=False):
     """ Creates an image pyramid, and generates views into each of its levels.
     Returns the pixel rectangle corresponding to each image
     """
@@ -44,12 +44,14 @@ def sliding_window_generator(img, window_dims=(32, 32), scale_factor=1.1, stride
                 local_rect = gm.PixelRectangle.from_opencv_bbox([x, y, ww, wh])
 
                 # Crop the window:
-                window = utils.crop_rectangle(img, local_rect)
+                window = None
+                if not only_rects:
+                    window = utils.crop_rectangle(img, local_rect)
 
                 # Find the window location in the original image:
                 orig_rect = local_rect.scale_image(img_dims, orig_dims)
 
-                if window.shape[0] != wh:
+                if (not window is None) and window.shape[0] != wh:
                     print 'ERROR:', (w, h), (x, y), (mx, my), local_rect
 
                 yield (window, orig_rect)

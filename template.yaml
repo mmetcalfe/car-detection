@@ -129,9 +129,11 @@ dataset:
         enable_xflip: True # True or False
 
         # Rotation range is [-max_rotation_degrees, max_rotation_degrees]:
+        # Warning: Setting a non-zero rotation will slow down image generation
+        # by an order of magnitude.
         # max_rotation_degrees: '8.0'
-        max_rotation_degrees: '5.0'
-        # max_rotation_degrees: '0.0'
+        # max_rotation_degrees: '5.0'
+        max_rotation_degrees: '0.0'
 
         # Max translation in each dimension as a fraction of sample size:
         max_trans_frac: ['0.05', '0.05']

@@ -34,11 +34,11 @@ def batch_shuffle(gen, batch_size=10000):
             yield reg
 
 class DataGenerator(object):
-    def __init__(self, config_yaml_fname, pos_frac, exclusion_frac=0.1):
+    def __init__(self, config_yaml_fname, pos_frac, exclusion_frac):
         config_yaml = fileutils.load_yaml_file(config_yaml_fname)
         self.pos_reg_gen = generate_samples.load_positive_region_generator(config_yaml)
-        self.neg_reg_gen = batch_shuffle(generate_samples.load_negative_region_generator(config_yaml))
-        self.exc_reg_gen = batch_shuffle(generate_samples.load_exclusion_region_generator(config_yaml))
+        self.neg_reg_gen = batch_shuffle(generate_samples.load_negative_region_generator(config_yaml), batch_size=100)
+        self.exc_reg_gen = batch_shuffle(generate_samples.load_exclusion_region_generator(config_yaml), batch_size=5000)
         self.window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
         self.pos_frac = pos_frac
         self.exc_frac = exclusion_frac
@@ -116,10 +116,10 @@ class DataGenerator(object):
             dataset.tf_enqueue_op.run(session=sess, feed_dict=feed)
 
     @staticmethod
-    def mp_enqueue_process(mp_queue, qsize_counter, config_yaml_fname, pos_frac, load_batch_size=100):
+    def mp_enqueue_process(mp_queue, qsize_counter, config_yaml_fname, pos_frac, exclusion_frac, load_batch_size=100):
         print 'mp_enqueue_process: DataGenerator'
         sys.stdout.flush()
-        data_gen = DataGenerator(config_yaml_fname, pos_frac)
+        data_gen = DataGenerator(config_yaml_fname, pos_frac, exclusion_frac)
         print 'mp_enqueue_process: sample_generator'
         sys.stdout.flush()
         # sample_gen = data_gen.sample_generator(load_batch_size)
@@ -137,9 +137,10 @@ class DataGenerator(object):
 class DataSet(object):
     # Based on http://stackoverflow.com/a/34596212/3622526
     # https://www.tensorflow.org/versions/0.6.0/how_tos/threading_and_queues/index.html
-    def __init__(self, config_yaml_fname, pos_frac, maxqsize=1000):
+    def __init__(self, config_yaml_fname, pos_frac, exclusion_frac, maxqsize=1000):
         self.config_yaml_fname = config_yaml_fname
         self.pos_frac = pos_frac
+        self.exclusion_frac = exclusion_frac
         self.maxqsize = maxqsize
 
         config_yaml = fileutils.load_yaml_file(config_yaml_fname)
@@ -236,7 +237,7 @@ class DataSet(object):
         # Start the generator processes:
         # self.pool = multiprocessing.Pool(processes=num_threads)
         self.processes = []
-        args = (self.mp_queue, self.mp_qsize, self.config_yaml_fname, self.pos_frac)
+        args = (self.mp_queue, self.mp_qsize, self.config_yaml_fname, self.pos_frac, self.exclusion_frac)
         for i in xrange(num_threads):
             # print 'self.pool.apply_async'
             # self.pool.apply_async(func=DataGenerator.mp_enqueue_process, args=args)
@@ -310,12 +311,12 @@ class DataSet(object):
         # each use.
         return feature_batch, label_batch
 
-def initialise_data_sets(config_yaml_fname, pos_frac=0.5, test_pos_frac=0.5):
+def initialise_data_sets(config_yaml_fname, pos_frac=0.5, exclusion_frac=0.1, test_pos_frac=0.5):
     class DataSets(object):
         pass
     data_sets = DataSets()
-    data_sets.train = DataSet(config_yaml_fname, pos_frac)
-    data_sets.test = DataGenerator(config_yaml_fname, test_pos_frac)
+    data_sets.train = DataSet(config_yaml_fname, pos_frac, exclusion_frac)
+    data_sets.test = DataGenerator(config_yaml_fname, test_pos_frac, exclusion_frac)
     # data_sets.validation = DataSet([], 0)
     # data_sets.test = DataSet([], 0)
     return data_sets

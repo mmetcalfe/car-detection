@@ -1,3 +1,4 @@
+import traceback
 import os.path
 import itertools
 import cv2
@@ -5,6 +6,7 @@ import numpy as np
 import cardetection.tensorflow.cnntraining as cnntraining
 import cardetection.carutils.detection as detectutils
 import cardetection.carutils.fileutils as fileutils
+from progress.bar import Bar as ProgressBar
 
 def draw_detections(img, cars):
     for (x,y,w,h) in cars:
@@ -34,11 +36,12 @@ class TensorFlowObjectDetector(object):
 
         # Placeholder for input images:
         # detector.window_dims = [28, 16]
+        print 'detector.window_dims:', detector.window_dims
         img_w, img_h = detector.window_dims
         num_col_chnls = 3
         img_pixels = img_w*img_h*num_col_chnls
         detector.x = tf.placeholder("float", [None, img_pixels], name='input_images')
-        y_conv, keep_prob = cnntraining.build_model(
+        y_conv, keep_prob, _ = cnntraining.build_model(
             x=detector.x,
             window_dims=detector.window_dims
         )
@@ -64,21 +67,36 @@ class TensorFlowObjectDetector(object):
 
     def detect_objects_in_image(self, img, greyscale=True, resize=True):
         if resize:
-            while img.shape[0] > 1024:
+            max_w = 1024
+            if img.shape[0] > max_w:
                 # print 'resize:', img_path, img.shape
-                img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
+                # img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
+                h, w = img.shape[:2]
+                aspect = w / float(h)
+                new_h = int(max_w / aspect)
+                img = cv2.resize(img, dsize=(max_w, new_h))
 
-        win_gen = detectutils.sliding_window_generator(img,
-            window_dims=self.window_dims,
-            scale_factor=1.1,
-            strides=(8, 8)
-            # scale_factor=1.5,
-            # strides=(16, 16)
-        )
+        print 'img.shape:', img.shape
+
+        def get_win_gen(only_rects=False):
+            return detectutils.sliding_window_generator(img,
+                window_dims=self.window_dims,
+                scale_factor=1.1,
+                strides=(8, 8),
+                # scale_factor=1.2,
+                # strides=(16, 16),
+                only_rects=only_rects
+            )
+
+        win_gen = get_win_gen()
+        num_windows = sum(1 for _ in get_win_gen(only_rects=True))
+        batch_size = 100
+        # num_batches = int(np.ceil(num_windows/float(batch_size)))
 
         detected_cars = []
+        progressbar = ProgressBar('Processing windows:', max=num_windows, suffix='%(index)d/%(max)d - %(eta)ds')
         while True:
-            samples_windows = list(itertools.islice(win_gen, 0, 50))
+            samples_windows = list(itertools.islice(win_gen, 0, batch_size))
             if len(samples_windows) == 0:
                 break
 
@@ -93,10 +111,14 @@ class TensorFlowObjectDetector(object):
             feed = {self.x: samples, self.keep_prob: 1.0}
             label_probs = self.sess.run(self.y_conv, feed_dict=feed)
 
+            progressbar.next(batch_size)
+
             for probs, window in zip(label_probs, windows):
                 pos_prob, neg_prob = probs
                 if pos_prob > neg_prob:
                     detected_cars.append(window.opencv_bbox)
+
+        progressbar.finish()
 
 
         # print img_path, len(cars)
@@ -177,6 +199,9 @@ class ObjectDetector(object):
             try:
                 detector = TensorFlowObjectDetector.load_from_directory(data_dir)
             except ValueError: # TODO: Use a custom exception here.
+                # exc_info = sys.exc_info()
+                # print exc_info
+                traceback.print_exc()
                 raise ValueError('The directory \'{}\' does not contain a valid OpenCV or TensorFlow classifier.'.format(data_dir))
 
         return detector

@@ -117,11 +117,12 @@ def generate_negative_regions(image_dir, window_dims, modifiers_config=None):
             if w < min_w or h < min_h:
                 continue
 
-            rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize, min_size_length)
-            mod = modifier_generator.next()
-            reg = utils.ImageRegion(rect, img_path, mod)
-
-            yield reg
+            # Generate a number of regions per image:
+            for i in xrange(10):
+                rect = gm.PixelRectangle.random_with_same_aspect(window_dims, imsize, min_size_length)
+                mod = modifier_generator.next()
+                reg = utils.ImageRegion(rect, img_path, mod)
+                yield reg
 
 def generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, modifiers_config=None):
     print 'generate_negative_regions_with_exclusions:'

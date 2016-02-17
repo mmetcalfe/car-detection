@@ -52,6 +52,106 @@ Run in webapp/cardetector:
 
 Note: The app structure was based on https://realpython.com/blog/python/the-ultimate-flask-front-end/
 
+### Provision DigitalOcean Ubuntu 15.10 x64 server:
+
+Note: The droplet tested had the following specs.
+$20/mo, 2GB Ram, 2 CPUs, 40GB SSD Disk, 3 TB Transfer, New York 2, Ubuntu 15.10 x64
+
+Add this script to User Data when creating the droplet: https://github.com/digitalocean/do_user_scripts/blob/master/Ubuntu-14.04/web-servers/lamp.yml
+
+Note: See the following for an guide of the NodeJS installation below. https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-an-ubuntu-14-04-server
+
+Install the following:
+
+    # sudo apt-get update
+    # sudo apt-get install build-essential
+    # sudo apt-get install python-dev
+    # sudo apt-get install python-pip
+    # sudo apt-get install pkg-config
+    # sudo apt-get install libopenblas-dev
+    # sudo apt-get install gfortran
+    # sudo apt-get install libfreetype6-dev
+    # sudo apt-get install libpng12-dev
+    # sudo apt-get install libjpeg-turbo8-dev
+    # sudo apt-get install python-numpy
+    # sudo apt-get install python-scipy
+    # sudo apt-get install libglfw3-dev
+    # sudo apt-get install python-opencv
+    # sudo apt-get install git
+    <!-- # sudo apt-get install nodejs npm -->
+    # sudo wget -qO- \
+      https://raw.githubusercontent.com/creationix/nvm/v0.31.0/install.sh \
+      | bash # Install nvm
+    # source ~/.bashrc
+    # nvm install 5.1.0 # Install a recent version of nodejs
+    # nvm use 5.1.0
+    # nvm alias default 5.1.0 # Ensure that this version is automatically selected when a new session spawns.
+    # sudo apt-get install libapache2-mod-wsgi
+    # cd /var/www
+    # git clone https://github.com/mmetcalfe/car-detection
+    # cd /var/www/car-detection
+    # pip install -r requirements.txt
+    # cd /var/www/car-detection/webapp/cardetector
+    # npm install -g bower
+    # npm install
+    # bower install --allow-root
+
+Increase the swap space of the droplet to allow tensorflow to build without g++
+crashing.
+Note: This happens even with `bazel build --jobs=1`.
+https://www.digitalocean.com/community/tutorials/how-to-add-swap-on-ubuntu-14-04
+
+    # sudo fallocate -l 8G /swapfile
+    # sudo chmod 600 /swapfile
+    # sudo mkswap /swapfile
+    # sudo swapon /swapfile
+    # sudo echo '/swapfile   none    swap    sw    0   0' >> /etc/fstab
+
+Install TensorFlow from source:
+Note: See the following. https://www.tensorflow.org/versions/r0.7/get_started/os_setup.html
+
+    # # Install Bazel
+    # sudo apt-get install software-properties-common
+    # sudo apt-get install openjdk-8-jdk
+    # sudo apt-get install pkg-config zip g++ zlib1g-dev unzip
+    # wget https://github.com/bazelbuild/bazel/releases/download/0.1.5/bazel-0.1.5-installer-linux-x86_64.sh
+    # chmod +x bazel-0.1.5-installer-linux-x86_64.sh
+    # ./bazel-0.1.5-installer-linux-x86_64.sh
+
+    # # Install other Dependencies
+    # sudo apt-get install python-numpy swig python-dev
+
+    # # Clone the TensorFlow repository
+    # cd ~
+    # git clone --recurse-submodules https://github.com/tensorflow/tensorflow
+
+    # # Configure the installation (accept defaults)
+    # cd ~/tensorflow
+    # ./configure
+
+    # # Create the pip package and install
+    # # Note: Set jobs to a low number to avoid g++ running out of memory and
+    # # crashing (http://stackoverflow.com/a/34399184/3622526).
+    # bazel build --jobs=1 -c opt //tensorflow/tools/pip_package:build_pip_package
+    # bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
+    # sudo pip install -U /tmp/tensorflow_pkg/tensorflow-0.7.0-py2-none-any.whl # .whl name may be different
+
+Check that the app starts without error (use Ctrl+C to quit):
+
+    # cd /var/www/car-detection/webapp/cardetector
+    # npm test
+
+Copy the virtual host config and enable the virtual host:
+Note: See the following for more information.
+https://www.digitalocean.com/community/tutorials/how-to-deploy-a-flask-application-on-an-ubuntu-vps
+See also: http://flask.pocoo.org/docs/0.10/deploying/mod_wsgi/#creating-a-wsgi-file
+
+    # sudo a2enmod wsgi # Enable wsgi
+    # cd /var/www/car-detection/webapp/cardetector
+    # sudo cp cardetector.conf /etc/apache2/sites-available/
+    # a2ensite cardetector # Enable the virtual host
+    # service apache2 restart # Restart Apache to apply changes
+
 ## To train a cascade classifier:
 
     $ python -m cardetection.detection.perform_experiments
@@ -116,3 +216,7 @@ To run tensorboard:
   * `saveclusters.py`: clusters samples using HOG features and K-Means, then saves an average edge-image and a mosaic of 100 samples for each cluster.
 
   * `aspect_histogram.py`: saves histograms of angles and aspect ratios of samples in the KITTI dataset.
+
+Useful tools:
+
+  * line-profiler for profiling https://github.com/rkern/line_profiler

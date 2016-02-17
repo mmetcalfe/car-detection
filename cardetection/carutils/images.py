@@ -204,6 +204,7 @@ class ImageRegion(object):
         self.fname = fname
         self.modifiers = modifiers
 
+    # @profile
     def load_cropped_sample(self, modifiers=None):
         if not modifiers:
             modifiers = self.modifiers
@@ -258,6 +259,7 @@ class ImageRegion(object):
 
             return cropped
 
+    # @profile
     def load_cropped_resized_sample(self, dimensions, modifiers=None):
         sample = self.load_cropped_sample(modifiers)
 

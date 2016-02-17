@@ -25,6 +25,7 @@ def save_generated_bbinfo(pos_num, window_dims, pos_dir, bbinfo_dir):
             info_lines.append('{} 1 0 0 {} {}'.format(fname, w, h))
         fh.write('\n'.join(info_lines))
 
+# @profile
 def save_regions(reg_gen, num_regions, window_dims, save_dir):
     progressbar = ProgressBar('Saving regions', max=num_regions)
     index = 0
@@ -36,7 +37,7 @@ def save_regions(reg_gen, num_regions, window_dims, save_dir):
         progressbar.next()
     progressbar.finish()
 
-if __name__ == '__main__':
+def main():
     # random.seed(123454321) # Use deterministic samples.
 
     # Parse arguments:
@@ -57,7 +58,13 @@ if __name__ == '__main__':
     neg_num = int(classifier_yaml['training']['svm']['neg_num'])
     neg_output_dir = classifier_yaml['dataset']['directory']['generation']['output']['negative']
     def get_neg_reg_gen():
-        return generate_samples.load_negative_region_generator(classifier_yaml)
+        # return generate_samples.load_negative_region_generator(classifier_yaml)
+        return generate_samples.load_exclusion_region_generator(classifier_yaml)
+
+    # TODO: REMOVE THIS CODE:
+    save_regions(get_neg_reg_gen(), neg_num, window_dims, neg_output_dir)
+    sys.exit(1)
+
     # neg_reg_generator = generate_samples.generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
     # print len(list(neg_reg_generator))
     mosaic_gen = utils.mosaic_generator(get_neg_reg_gen(), (10, 15), (40, 60))
@@ -107,3 +114,6 @@ if __name__ == '__main__':
                 break
         if stop:
             break
+
+if __name__ == '__main__':
+    main()
