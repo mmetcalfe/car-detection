@@ -10,36 +10,36 @@ var gulp = require('gulp'),
     clean = require('gulp-clean');
 
 gulp.task('jsx', function () {
-  return gulp.src('./project/static/scripts/jsx/main.jsx')
+  return gulp.src('./cardetector/static/scripts/jsx/main.jsx')
     .pipe(browserify({
         insertGlobals: true,
         extensions: ['.jsx'],
         transform: ['reactify']
     }))
     .pipe(rename({extname: '.js'}))
-    .pipe(gulp.dest('./project/static/scripts/generated_js'))
+    .pipe(gulp.dest('./cardetector/static/scripts/generated_js'))
     .pipe(size())
 });
 
 gulp.task('less', function () {
-  return gulp.src('./project/static/styles/less/*.less')
+  return gulp.src('./cardetector/static/styles/less/*.less')
   .pipe(less())
   // .pipe(cssmin())
   // .pipe(rename({suffix: '.min'}))
-  .pipe(gulp.dest('./project/static/styles/generated_css'));
+  .pipe(gulp.dest('./cardetector/static/styles/generated_css'));
 });
 
 gulp.task('clean', function () {
   return gulp.src(
-      ['./project/static/scripts/generated_js',
-       './project/static/styles/generated_css'],
+      ['./cardetector/static/scripts/generated_js',
+       './cardetector/static/styles/generated_css'],
       {read: false})
     .pipe(clean());
 });
 
 gulp.task('watch', function () {
-  gulp.watch('./project/static/scripts/jsx/*', ['jsx']);
-  gulp.watch('./project/static/styles/less/*', ['less']);
+  gulp.watch('./cardetector/static/scripts/jsx/*', ['jsx']);
+  gulp.watch('./cardetector/static/styles/less/*', ['less']);
 });
 
 gulp.task('default', ['clean', 'jsx', 'less', 'watch']);

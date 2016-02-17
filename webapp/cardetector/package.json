@@ -2,7 +2,7 @@
   "name": "cardetector",
   "version": "1.0.0",
   "description": "Web app providing a GUI for the car detection project.",
-  "main": "project/appserver.py",
+  "main": "cardetector/appserver.py",
   "dependencies": {
     "react": "^0.14.7",
     "react-select": "^0.9.1",
@@ -20,7 +20,7 @@
     "reactify": "^1.1.1"
   },
   "scripts": {
-    "test": "python project/appserver.py"
+    "test": "python cardetector/appserver.py"
   },
   "repository": {
     "type": "git",
