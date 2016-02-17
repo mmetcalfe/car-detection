@@ -28,6 +28,12 @@ app.debug = False # Debug must be false if we're serving to the Internet.
 # future.
 # http://flask.readthedocs.org/en/0.6/config/
 
+
+detector_config_fname = os.path.join(app.instance_path, 'detector-config.yaml')
+if __name__ == '__main__':
+    detector_config_fname = os.path.join(app.instance_path, 'detector-config-local.yaml')
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -42,12 +48,12 @@ def add_numbers():
 @app.route('/_detector_directories', methods=['GET'])
 def detector_directories():
     """Load the detector directories from the config file"""
-    config_yaml = fileutils.load_yaml_file('detector-config.yaml')
+    config_yaml = fileutils.load_yaml_file(detector_config_fname)
     return jsonify(detector_directories=config_yaml['detector_directories'])
 @app.route('/_image_directories', methods=['GET'])
 def image_directories():
     """Load the image directories from the config file"""
-    config_yaml = fileutils.load_yaml_file('detector-config.yaml')
+    config_yaml = fileutils.load_yaml_file(detector_config_fname)
     return jsonify(image_directories=config_yaml['image_directories'])
 
 def validate_image_directory(imageDir, config_yaml):
@@ -82,7 +88,7 @@ def update_preview_state():
     performDetection = request.json['performDetection']
     returnImage = request.json['returnImage']
 
-    config_yaml = fileutils.load_yaml_file('detector-config.yaml')
+    config_yaml = fileutils.load_yaml_file(detector_config_fname)
 
     validate_image_directory(imageDir, config_yaml)
 
@@ -105,10 +111,16 @@ def update_preview_state():
     # Perform detection:
     detections = []
     if performDetection:
-        send_img_path = 'static/tmp-detection-img.jpg'
-        save_img_path = 'project/{}'.format(send_img_path)
+        send_img_path = os.path.join(app.root_path, 'static', 'tmp-detection-img.jpg')
+        save_img_path = send_img_path
         detection_img_exists = os.path.isfile(save_img_path)
-        if not (returnImage and detection_img_exists):
+        if not returnImage and detection_img_exists:
+            # Delete the current image so that it isn't returned by mistake if
+            # the detection process fails.
+            os.remove(save_img_path)
+        if not returnImage or not detection_img_exists:
+            # Perform the detection.
+
             validate_detector_directory(detectorDir, config_yaml)
 
             # detector = ObjectDetector.load_from_directory(detectorDir)
@@ -133,6 +145,8 @@ def update_preview_state():
         # Return the new preview state:
         print 'response data:', previewState.data
         return previewState
+
+
 
 if __name__ == '__main__':
     # Start a local development server.
