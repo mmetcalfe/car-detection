@@ -7,6 +7,7 @@
 /output
 /car_detector.yaml
 /data/**/samples.vec
+/data/images
 **/bower_components/
 **/node_modules/
 **/generated_*/
