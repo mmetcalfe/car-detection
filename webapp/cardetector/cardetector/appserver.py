@@ -2,6 +2,7 @@ import sys
 # Ensure that the cardetection package is on the Python path.
 sys.path.append('../../')
 
+import os
 import os.path
 import pprint
 import flask
@@ -111,7 +112,7 @@ def update_preview_state():
     # Perform detection:
     detections = []
     if performDetection:
-        send_img_path = os.path.join(app.root_path, 'static', 'tmp-detection-img.jpg')
+        send_img_path = os.path.join(app.root_path, 'static', 'cache', 'tmp-detection-img.jpg')
         save_img_path = send_img_path
         detection_img_exists = os.path.isfile(save_img_path)
         if not returnImage and detection_img_exists:
@@ -127,6 +128,15 @@ def update_preview_state():
             with ObjectDetector(detectorDir) as detector:
                 img = cv2.imread(current_img_path)
                 detections, img = detector.detect_objects_in_image(img)
+
+                # cv2.imwrite fails silently if it can't save the image for any
+                # reason. We manually check access permissions here, and throw
+                # an exception to inform the webmaster if they're incorrect.
+                sav_img_dir, _ = os.path.split(save_img_path)
+                if not os.path.isdir(sav_img_dir):
+                    raise IOError('The sav_img_dir \'{}\' does not exist.'.format(sav_img_dir))
+                if not os.access(sav_img_dir, os.W_OK):
+                    raise IOError('The server user (probably www-data) does not have write permissions for the save_img_path: \'{sav_img_dir}\''.format(sav_img_dir))
                 cv2.imwrite(save_img_path, img)
 
     previewState = jsonify({

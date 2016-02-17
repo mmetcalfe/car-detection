@@ -18,6 +18,7 @@ For trainhog:
   * pymongo
 
 Useful for correcting image orientations:
+
 (see cardetection.detection.cascadetraining.checkImageOrientation())
 
   * exifread
@@ -55,11 +56,12 @@ Note: The app structure was based on https://realpython.com/blog/python/the-ulti
 ### Deploy web-app to a DigitalOcean Ubuntu 15.10 x64 server:
 
 Note: The droplet tested had the following specs.
+
 $20/mo, 2GB Ram, 2 CPUs, 40GB SSD Disk, 3 TB Transfer, New York 2, Ubuntu 15.10 x64
 
 Add this script to User Data when creating the droplet: https://github.com/digitalocean/do_user_scripts/blob/master/Ubuntu-14.04/web-servers/lamp.yml
 
-Note: See the following for an guide of the NodeJS installation below. https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-an-ubuntu-14-04-server
+Note: See the following for a guide on the NodeJS installation below. https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-an-ubuntu-14-04-server
 
 Install the following:
 
@@ -100,8 +102,8 @@ Install the following:
     # bower install --allow-root
     # gulp # (just kill with Ctrl+C once it's done)
 
-Increase the swap space of the droplet to allow tensorflow to build without g++
-crashing.
+Increase the swap space of the droplet to allow tensorflow to build without g++ crashing.
+
 Note: This happens even with `bazel build --jobs=1`.
 https://www.digitalocean.com/community/tutorials/how-to-add-swap-on-ubuntu-14-04
 
@@ -112,6 +114,7 @@ https://www.digitalocean.com/community/tutorials/how-to-add-swap-on-ubuntu-14-04
     # sudo echo '/swapfile   none    swap    sw    0   0' >> /etc/fstab
 
 Install TensorFlow from source:
+
 Note: See the following. https://www.tensorflow.org/versions/r0.7/get_started/os_setup.html
 
     # # Install Bazel
@@ -146,8 +149,10 @@ Check that the app starts without error (use Ctrl+C to quit):
     # npm test
 
 Copy the virtual host config and enable the virtual host:
+
 Note: See the following for more information.
 https://www.digitalocean.com/community/tutorials/how-to-deploy-a-flask-application-on-an-ubuntu-vps
+
 See also: http://flask.pocoo.org/docs/0.10/deploying/mod_wsgi/#creating-a-wsgi-file
 
     # sudo a2enmod wsgi # Enable wsgi
