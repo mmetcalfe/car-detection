@@ -20,19 +20,21 @@ if __name__ == '__main__':
         raise ValueError('Output directory \'{}\' does not exist!'.format(FLAGS.train_dir))
 
     # Set up the data source:
-    num_data_gen_threads = 7
+    SUMMARY_INTERVAL = 10
+    CHECKPOINT_INTERVAL = 25
+    NUM_DATA_GEN_THREADS = 7
+    BATCH_SIZE = 2000
+    LEARNING_RATE = 1e-3
+
     datasets = input_data.initialise_data_sets(
         FLAGS.config_yaml,
-        pos_frac=0.8,
+        pos_frac=0.2,
         # exclusion_frac=0.02,
         hard_neg_frac=0.05,
         exclusion_frac=0.05,
         test_pos_frac=1.0
     )
-    BATCH_SIZE = 50
     feature_batch, label_batch = datasets.train.batch_generators(BATCH_SIZE)
-    SUMMARY_INTERVAL = 1
-    CHECKPOINT_INTERVAL = 50
 
     # Build the model:
     logits, keep_prob, regularised_params = cnnmodel.build_model(
@@ -67,7 +69,7 @@ if __name__ == '__main__':
     with tf.name_scope("train") as scope:
         global_step = tf.Variable(0, name="global_step", trainable=False)
         # optimiser = tf.train.AdamOptimizer(1e-4)
-        optimiser = tf.train.AdamOptimizer(1e-4, epsilon=1e-6)
+        optimiser = tf.train.AdamOptimizer(LEARNING_RATE, epsilon=1e-6)
         train_step = optimiser.minimize(loss, global_step=global_step)
 
     # Note: Not using cross_entropy from CIFAR-10 example due to numerical
@@ -87,7 +89,7 @@ if __name__ == '__main__':
     #     tf.ConfigProto(inter_op_parallelism_threads=NUM_CORES,
     #                    intra_op_parallelism_threads=NUM_CORES))
     sess = tf.Session()
-
+    print   sess
     # Merge all the summaries and write them out to FLAGS.train_dir:
     merged = tf.merge_all_summaries()
     writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph_def)
@@ -113,7 +115,7 @@ if __name__ == '__main__':
     if True:
         print 'create_threads'
         # enqueue_threads = datasets.train.qrunner.create_threads(sess, coord=datasets.train.coord, start=True)
-        datasets.train.start_threads(sess, num_threads=num_data_gen_threads)
+        datasets.train.start_threads(sess, num_threads=NUM_DATA_GEN_THREADS)
         # datasets.train.start_threads(sess, num_threads=1)
 
         # One process, 100 steps, batch size 50:

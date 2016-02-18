@@ -207,7 +207,7 @@ training:
         # featureType: { paramSet: [HAAR, LBP, HOG] } # {HAAR(default), LBP, HOG}
 
         # Window size for cascade classifier:
-        sampleSize: ['112', '64'] # [24, 24]
+        sampleSize: ['112', '64'] # [24, 24] # aspect 1.75
     boost:
         minHitRate: '0.995' # 0.995
         maxFalseAlarmRate: '0.667' # 0.5

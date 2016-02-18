@@ -275,7 +275,7 @@ def build_model(x, window_dims, use_colour=True):
     tf.image_summary('#3 filters W_conv2_transp', conv_mosaic(W_conv2_transp), max_images=1)
     tf.image_summary('#4 filter_results h_conv2', conv_mosaic(h_conv2), max_images=1)
 
-    tf.image_summary('#4 filters W_fc2', flat_mosaic(W_fc2), max_images=1)
+    tf.image_summary('#4 filters W_ro', flat_mosaic(W_ro), max_images=1)
 
     regularised_params = [W_fc1, W_fc2]
 

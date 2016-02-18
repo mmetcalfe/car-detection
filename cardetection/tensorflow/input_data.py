@@ -5,11 +5,50 @@ import threading
 import multiprocessing
 import numpy as np
 import tensorflow as tf
+import cv2
 import itertools
 import random
 import cardetection.detection.generate_samples as generate_samples
 import cardetection.carutils.fileutils as fileutils
 from progress.bar import Bar as ProgressBar
+
+def tf_random_modifiers(flat_img, window_dims, name=None):
+    float_img = tf.cast(flat_img, tf.float32)
+
+    w, h = window_dims
+    mod_image = tf.reshape(float_img, (h, w, 3))
+
+    # # Define the modifier ops:
+    # brightness_mod = lambda x: tf.image.random_brightness(x, max_delta=0.3)
+    # contrast_mod = lambda x: tf.image.random_contrast(x, lower=0.2, upper=1.8)
+    # saturation_mod = lambda x: tf.image.random_saturation(x, lower=0.2, upper=1.8)
+    # hue_mod = lambda x: tf.image.random_hue(x, max_delta=0.025)
+    # modifier_ops = [brightness_mod, contrast_mod, saturation_mod, hue_mod]
+    # # Choose a random order for the modifiers:
+    # perm = np.arange(len(modifier_ops))
+    # np.random.shuffle(perm)
+    # # Apply the modifiers in a random order:
+    # for i in perm:
+    #     mod_op = modifier_ops[i]
+    #     mod_image = mod_op(mod_image)
+
+    mod_image = tf.image.random_brightness(mod_image, max_delta=0.3)
+    mod_image = tf.image.random_contrast(mod_image, lower=0.2, upper=1.8)
+    mod_image = tf.image.random_saturation(mod_image, lower=0.2, upper=1.8)
+    mod_image = tf.image.random_hue(mod_image, max_delta=0.025)
+
+    # Subtract off the mean and divide by the variance of the pixels.
+    final_image = tf.image.per_image_whitening(mod_image)
+
+    final_flat_image = tf.reshape(final_image, (w*h*3,), name=name)
+    print 'final_flat_image.get_shape()', final_flat_image.get_shape()
+
+    return final_flat_image
+
+def random_modifiers_op(flat_img, window_dims, name=None):
+  with tf.op_scope([flat_img], name, "RandomModifiers") as scope:
+    flat_img = tf.convert_to_tensor(flat_img, name="flat_img")
+    return tf_random_modifiers(flat_img, window_dims, name=scope)
 
 # From: http://eli.thegreenplace.net/2012/01/04/shared-counter-with-pythons-multiprocessing
 class SharedCounter(object):
@@ -69,8 +108,9 @@ class DataGenerator(object):
         # print 'Loading regions'
         for i, reg in enumerate(regions):
             # progressbar.next()
-            sample = reg.load_cropped_resized_sample(self.window_dims)
-            images[i,:,:,:] = sample
+            bgr_sample = reg.load_cropped_resized_sample(self.window_dims)
+            rgb_sample = cv2.cvtColor(bgr_sample, cv2.COLOR_BGR2RGB)
+            images[i,:,:,:] = rgb_sample
         # progressbar.finish()
 
         # Convert shape from [num examples, rows, columns, depth]
@@ -116,7 +156,7 @@ class DataGenerator(object):
         while not dataset.coord.should_stop():
             # print 'tf_enqueue_thread: sample_gen.next()'
             image, label = sample_gen.next()
-            feed = {dataset.feature_input: image, dataset.label_input: label}
+            feed = {dataset.many_feature_input: image, dataset.many_label_input: label}
             dataset.tf_enqueue_op.run(session=sess, feed_dict=feed)
 
     @staticmethod
@@ -163,11 +203,17 @@ class DataSet(object):
             shapes=[feature_shape, label_shape]
         )
 
-        # self.tf_enqueue_op = self.fifoq.enqueue([self.feature_input, self.label_input])
+        # self.tf_enqueue_op = self.fifoq.enqueue([self.many_feature_input, self.many_label_input])
         # self.feature_image = tf.placeholder(tf.float32, shape=[img_h, img_w, depth])
-        self.feature_input = tf.placeholder(tf.float32, shape=[None, feature_shape[0]])
-        self.label_input = tf.placeholder(tf.float32, shape=[None, label_shape[0]])
-        self.tf_enqueue_op = self.fifoq.enqueue_many([self.feature_input, self.label_input])
+        self.many_feature_input = tf.placeholder(tf.float32, shape=[None, feature_shape[0]])
+        self.many_label_input = tf.placeholder(tf.float32, shape=[None, label_shape[0]])
+        self.tf_enqueue_many_op = self.fifoq.enqueue_many([self.many_feature_input, self.many_label_input])
+
+        self.feature_input = tf.placeholder(tf.float32, shape=feature_shape)
+        self.feature_input_mod = random_modifiers_op(self.feature_input, self.window_dims)
+        self.label_input = tf.placeholder(tf.float32, shape=label_shape)
+        self.tf_enqueue_op = self.fifoq.enqueue([self.feature_input_mod, self.label_input])
+
         self.tf_qsize_op = self.fifoq.size()
 
         # Use threading or multiprocessing.
@@ -196,6 +242,7 @@ class DataSet(object):
         """ Continuously transfers data from the mp_queue to the tf_queue.
         """
         print 'transfer_thread: start'
+
         while not self.mp_tf_shutdown:
             # if self.fifoq.size() >= self.maxqsize - 2:
             #     continue
@@ -203,12 +250,21 @@ class DataSet(object):
             # print 'transfer_thread: self.mp_queue.get'
             try:
                 # image, label = self.mp_queue.get_nowait()
-                image, label = self.mp_queue.get(timeout=1)
+                images, labels = self.mp_queue.get(timeout=1)
                 self.mp_qsize.decrement()
                 # print 'transfer_thread: dataset.tf_enqueue_op.run', 'mpq:', self.mp_qsize.value(), 'tfq:', self.get_tf_queue_size(sess)
                 sys.stdout.flush()
-                feed = {self.feature_input: image, self.label_input: label}
-                self.tf_enqueue_op.run(session=sess, feed_dict=feed)
+
+                for i, img in enumerate(images):
+                    label = labels[i]
+                    # print 'i: {}, img.shape: {}, label: {}'.format(i, img.shape, label)
+                    # mod_img = sess.run(random_modifiers_op(img, self.window_dims))
+                    feed = {self.feature_input: img, self.label_input: label}
+                    self.tf_enqueue_op.run(session=sess, feed_dict=feed)
+
+                # feed = {self.many_feature_input: images, self.many_label_input: labels}
+                # self.tf_enqueue_many_op.run(session=sess, feed_dict=feed)
+
                 # print 'transfer_thread: finish enqueue'
                 # sys.stdout.flush()
             except Queue.Empty:
@@ -321,7 +377,7 @@ def initialise_data_sets(config_yaml_fname, pos_frac=0.5, exclusion_frac=0.1, ha
         pass
     data_sets = DataSets()
     data_sets.train = DataSet(config_yaml_fname, pos_frac, exclusion_frac, hard_neg_frac)
-    data_sets.test = DataGenerator(config_yaml_fname, test_pos_frac, exclusion_frac, hard_neg_frac)
+    # data_sets.test = DataGenerator(config_yaml_fname, test_pos_frac, exclusion_frac, hard_neg_frac)
     # data_sets.validation = DataSet([], 0)
     # data_sets.test = DataSet([], 0)
     return data_sets

@@ -105,6 +105,7 @@ def generate_positive_regions(image_dir, bbinfo_dir, modifiers_config=None, wind
             region = utils.ImageRegion(rect, img_path)
             source_regions.append(region)
 
+
     print 'Found {} source regions.'.format(len(source_regions))
 
     # Generate an infinite list of samples:
