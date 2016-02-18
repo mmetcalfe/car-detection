@@ -6,8 +6,10 @@
 import itertools
 import random
 import numpy as np
+import cv2
 import cardetection.carutils.images as utils
 import cardetection.carutils.geometry as gm
+from cardetection.detection.detector import ObjectDetector
 
 # TODO: Move these methods to a more sensible module.
 def load_negative_region_generator(config_yaml):
@@ -22,12 +24,51 @@ def load_exclusion_region_generator(config_yaml):
     exl_info_map = utils.load_opencv_bounding_box_info_directory(bbinfo_dir, suffix='exclusion')
     modifiers = config_yaml['dataset']['modifiers']
     return generate_negative_regions_with_exclusions(bak_img_dir, exl_info_map, window_dims, modifiers)
+def load_hard_negative_region_generator(config_yaml):
+    window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
+    bak_img_dir = config_yaml['dataset']['directory']['generation']['input']['background']
+    classifier_dir = config_yaml['dataset']['directory']['generation']['input']['hard_negative_classifier']
+    # modifiers = config_yaml['dataset']['modifiers']
+    return generate_hard_negative_regions(bak_img_dir, classifier_dir, window_dims)
 def load_positive_region_generator(config_yaml):
     window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
+    print 'window_dims', window_dims
     pos_img_dir = config_yaml['dataset']['directory']['generation']['input']['positive']
     bbinfo_dir = config_yaml['dataset']['directory']['bbinfo']
     modifiers = config_yaml['dataset']['modifiers']
     return generate_positive_regions(pos_img_dir, bbinfo_dir, modifiers, window_dims)
+
+def generate_hard_negative_regions(bak_img_dir, classifier_dir, window_dims):
+    all_images = utils.list_images_in_directory(bak_img_dir)
+
+    w, h = window_dims
+    window_aspect = w / float(h)
+
+    with ObjectDetector(classifier_dir) as detector:
+        for img_path in all_images:
+            # Detect objects:
+            img = cv2.imread(img_path)
+            img_h, img_w = img.shape[:2]
+            img_dims = (img_w, img_h)
+            opencv_rects, scaled_img_dims = detector.detect_objects_in_image(img, return_detection_img=False)
+            pixel_rects = map(gm.PixelRectangle.from_opencv_bbox, opencv_rects)
+
+            # Find rectangles in original image dimensions:
+            pixel_rects = [rect.scale_image(scaled_img_dims, img_dims) for rect in pixel_rects]
+
+            # Enlarge to window_dims:
+            pixel_rects = [rect.enlarge_to_aspect(window_aspect) for rect in pixel_rects]
+
+            # Ensure new rectangles are located within their images:
+            pixel_rects = [rect.translated([0,0], img_dims) for rect in pixel_rects]
+            pixel_rects = [rect for rect in pixel_rects if rect.lies_within_frame(img_dims)]
+
+            # Convert to image regions:
+            image_regions = [utils.ImageRegion(rect, img_path) for rect in pixel_rects]
+
+            # Yield results:
+            for reg in image_regions:
+                yield reg
 
 # generate_positive_regions :: String -> Map String ??? -> String -> (Int, Int) -> generator(ImageRegion)
 def generate_positive_regions(image_dir, bbinfo_dir, modifiers_config=None, window_dims=None, min_size=(48,48)):

@@ -11,4 +11,5 @@
 **/bower_components/
 **/node_modules/
 **/generated_*/
-**/cardetector/static/tmp-detection-img.jpg
+**/cardetector/static/**/tmp-detection-img.jpg
+*.lprof

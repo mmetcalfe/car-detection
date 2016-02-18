@@ -59,15 +59,17 @@ def main():
     neg_output_dir = classifier_yaml['dataset']['directory']['generation']['output']['negative']
     def get_neg_reg_gen():
         # return generate_samples.load_negative_region_generator(classifier_yaml)
-        return generate_samples.load_exclusion_region_generator(classifier_yaml)
+        # return generate_samples.load_exclusion_region_generator(classifier_yaml)
+        return generate_samples.load_hard_negative_region_generator(classifier_yaml)
 
-    # TODO: REMOVE THIS CODE:
-    save_regions(get_neg_reg_gen(), neg_num, window_dims, neg_output_dir)
-    sys.exit(1)
+    # # TODO: REMOVE THIS CODE:
+    # save_regions(get_neg_reg_gen(), neg_num, window_dims, neg_output_dir)
+    # sys.exit(1)
 
     # neg_reg_generator = generate_samples.generate_negative_regions_in_image_with_exclusions(all_images[0], exl_info_map, window_dims)
     # print len(list(neg_reg_generator))
-    mosaic_gen = utils.mosaic_generator(get_neg_reg_gen(), (10, 15), (40, 60))
+    mosaic_gen = utils.mosaic_generator(get_neg_reg_gen(), (5, 5), (100, 100))
+    # mosaic_gen = utils.mosaic_generator(get_neg_reg_gen(), (10, 15), (40, 60))
     stop = False
     for mosaic in mosaic_gen:
         print 'mosaic'

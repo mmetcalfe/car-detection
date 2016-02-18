@@ -34,14 +34,16 @@ def batch_shuffle(gen, batch_size=10000):
             yield reg
 
 class DataGenerator(object):
-    def __init__(self, config_yaml_fname, pos_frac, exclusion_frac):
+    def __init__(self, config_yaml_fname, pos_frac, exclusion_frac, classifier_frac):
         config_yaml = fileutils.load_yaml_file(config_yaml_fname)
         self.pos_reg_gen = generate_samples.load_positive_region_generator(config_yaml)
         self.neg_reg_gen = batch_shuffle(generate_samples.load_negative_region_generator(config_yaml), batch_size=100)
         self.exc_reg_gen = batch_shuffle(generate_samples.load_exclusion_region_generator(config_yaml), batch_size=5000)
+        self.cls_reg_gen = generate_samples.load_classifier_region_generator(config_yaml)
         self.window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
         self.pos_frac = pos_frac
         self.exc_frac = exclusion_frac
+        self.cls_frac = classifier_frac
 
     # Loads batches in a format compatible with the tensorflow MNIST example.
     def next_batch(self, batch_size):
@@ -50,12 +52,14 @@ class DataGenerator(object):
         pos_num = int(batch_size*self.pos_frac)
         total_neg_num = batch_size - pos_num
         exc_num = int(total_neg_num*self.exc_frac)
-        neg_num = total_neg_num - exc_num
+        cls_num = int(total_neg_num*self.cls_frac)
+        neg_num = total_neg_num - exc_num - cls_num
 
         pos_regions = list(itertools.islice(self.pos_reg_gen, 0, pos_num))
         neg_regions = list(itertools.islice(self.neg_reg_gen, 0, neg_num))
         exc_regions = list(itertools.islice(self.exc_reg_gen, 0, exc_num))
-        regions = pos_regions + neg_regions + exc_regions
+        cls_regions = list(itertools.islice(self.cls_reg_gen, 0, cls_num))
+        regions = pos_regions + neg_regions + exc_regions + cls_regions
 
         # Create a tensor containing all images:
         w, h = self.window_dims

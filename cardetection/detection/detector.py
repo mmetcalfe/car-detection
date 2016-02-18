@@ -3,7 +3,7 @@ import os.path
 import itertools
 import cv2
 import numpy as np
-import cardetection.tensorflow.cnntraining as cnntraining
+import cardetection.tensorflow.cnnmodel as cnnmodel
 import cardetection.carutils.detection as detectutils
 import cardetection.carutils.fileutils as fileutils
 from progress.bar import Bar as ProgressBar
@@ -41,7 +41,7 @@ class TensorFlowObjectDetector(object):
         num_col_chnls = 3
         img_pixels = img_w*img_h*num_col_chnls
         detector.x = tf.placeholder("float", [None, img_pixels], name='input_images')
-        y_conv, keep_prob, _ = cnntraining.build_model(
+        y_conv, keep_prob, _ = cnnmodel.build_model(
             x=detector.x,
             window_dims=detector.window_dims
         )
@@ -65,7 +65,9 @@ class TensorFlowObjectDetector(object):
 
         return detector
 
-    def detect_objects_in_image(self, img, greyscale=True, resize=True):
+    def detect_objects_in_image(self, img, greyscale=False, resize=True, return_detection_img=True):
+        h, w = img.shape[:2]
+        scaled_img_dims = (w, h)
         if resize:
             max_w = 1024
             if img.shape[0] > max_w:
@@ -75,6 +77,7 @@ class TensorFlowObjectDetector(object):
                 aspect = w / float(h)
                 new_h = int(max_w / aspect)
                 img = cv2.resize(img, dsize=(max_w, new_h))
+                scaled_img_dims = (max_w, new_h)
 
         print 'img.shape:', img.shape
 
@@ -120,15 +123,16 @@ class TensorFlowObjectDetector(object):
 
         progressbar.finish()
 
-
-        # print img_path, len(cars)
         if len(detected_cars) > 0:
             detected_cars = np.stack(detected_cars)
-            draw_detections(img, detected_cars)
         else:
             detected_cars = np.array([])
 
-        return detected_cars.tolist(), img
+        if return_detection_img:
+            draw_detections(img, detected_cars)
+            return detected_cars.tolist(), img
+        else:
+            return detected_cars.tolist(), scaled_img_dims
 
 class OpenCVObjectDetector(object):
     def __init__(self, classifier):
@@ -144,11 +148,24 @@ class OpenCVObjectDetector(object):
 
         classifier = cv2.CascadeClassifier(classifier_xml)
         return cls(classifier)
-    def detect_objects_in_image(self, img, greyscale=True, resize=True):
+    def detect_objects_in_image(self, img, greyscale=True, resize=True, return_detection_img=True):
+        # if resize:
+        #     while img.shape[0] > 1024:
+        #         # print 'resize:', img_path, img.shape
+        #         img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
+
+        h, w = img.shape[:2]
+        scaled_img_dims = (w, h)
         if resize:
-            while img.shape[0] > 1024:
+            max_w = 1024
+            if img.shape[0] > max_w:
                 # print 'resize:', img_path, img.shape
-                img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
+                # img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
+                h, w = img.shape[:2]
+                aspect = w / float(h)
+                new_h = int(max_w / aspect)
+                img = cv2.resize(img, dsize=(max_w, new_h))
+                scaled_img_dims = (max_w, new_h)
 
         # # Check whether the image is upside-down:
         # if checkImageOrientation(img_path):
@@ -160,7 +177,7 @@ class OpenCVObjectDetector(object):
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         minSize = (img.shape[0] / 50, img.shape[1] / 50)
-        cars = self.classifier.detectMultiScale(
+        detected_cars = self.classifier.detectMultiScale(
             image=gray,
             # scaleFactor=1.05,
             scaleFactor=1.01,
@@ -168,13 +185,14 @@ class OpenCVObjectDetector(object):
             minSize=minSize,
         )
 
-        # print img_path, len(cars)
-        if len(cars) > 0:
-            draw_detections(img, cars)
-        else:
-            cars = np.array([])
+        if len(detected_cars) <= 0:
+            detected_cars = np.array([])
 
-        return cars.tolist(), img
+        if return_detection_img:
+            draw_detections(img, detected_cars)
+            return detected_cars.tolist(), img
+        else:
+            return detected_cars.tolist(), scaled_img_dims
 
 
 # TODO: Make abstract and provide OpenCV and TensorFlow implementations.
