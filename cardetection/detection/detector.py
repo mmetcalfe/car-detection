@@ -4,24 +4,25 @@ import itertools
 import cv2
 import numpy as np
 import cardetection.tensorflow.cnnmodel as cnnmodel
+import cardetection.carutils.images as utils
 import cardetection.carutils.detection as detectutils
 import cardetection.carutils.fileutils as fileutils
+import cardetection.carutils.geometry as gm
 from progress.bar import Bar as ProgressBar
+import tensorflow as tf
 
-def draw_detections(img, cars):
+def draw_detections(img, cars, col=(255,0,0)):
     for (x,y,w,h) in cars:
         lw = max(2, img.shape[0] / 100)
-        cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),lw)
+        cv2.rectangle(img,(x,y),(x+w,y+h),col,lw)
 
 class TensorFlowObjectDetector(object):
     def __init__(self):
-        import tensorflow as tf
         pass
     def cleanup(self):
         self.sess.close()
     @classmethod
     def load_from_directory(cls, checkpoint_dir):
-        import tensorflow as tf
         detector = cls()
 
         config_yaml_fname = fileutils.find_in_ancestors('template.yaml')
@@ -41,17 +42,26 @@ class TensorFlowObjectDetector(object):
         img_w, img_h = detector.window_dims
         num_col_chnls = 3
         img_pixels = img_w*img_h*num_col_chnls
+        detector.x_img = tf.placeholder("float", [img_h, img_w, num_col_chnls], name='x_img')
         detector.x = tf.placeholder("float", [None, img_pixels], name='input_images')
-        y_conv, keep_prob, _ = cnnmodel.build_model(
+        logits, keep_prob, _ = cnnmodel.build_model(
             x=detector.x,
             window_dims=detector.window_dims
         )
-        detector.y_conv = y_conv
+        detector.logits = logits
         detector.keep_prob = keep_prob
 
-        detector.sess = tf.Session()
-
-        detector.sess.run(tf.initialize_all_variables())
+        init = tf.initialize_all_variables()
+        detector.sess = tf.Session(
+            # config=tf.ConfigProto(
+            #     inter_op_parallelism_threads=1,
+            #     intra_op_parallelism_threads=1
+            # )
+        )
+        # print 'Session created!'
+        print detector.sess
+        detector.sess.run(init)
+        # print 'Variables initialised!'
 
         # Set up the checkpoint saver:
         saver = tf.train.Saver(tf.all_variables())
@@ -64,13 +74,56 @@ class TensorFlowObjectDetector(object):
         print 'get_checkpoint_state', tf.train.get_checkpoint_state(rel_checkpoint_dir)
         saver.restore(detector.sess, latest_ckpt)
 
+        # print 'Model restored!'
+
         return detector
+
+    def prepare_sample(self, img):
+        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Convert from [0, 255] -> [0.0, 1.0].
+        scaled_img = np.multiply(rgb_img, 1.0 / 255.0)
+
+        feed = {self.x_img: scaled_img}
+        float_img = tf.cast(self.x_img, tf.float32)
+
+        whitening_op = tf.image.per_image_whitening(float_img)
+        sample = self.sess.run(whitening_op, feed_dict=feed)
+        return sample
+
+    def classify(self, img, pixel_rect):
+        img_h, img_w = img.shape[:2]
+        img_dims = (img_w, img_h)
+        w, h = self.window_dims
+        window_shape = (h, w)
+        window_aspect = w / float(h)
+        # print window_aspect
+
+        # Enlarge to window_dims:
+        enlarged_rect = pixel_rect.enlarge_to_aspect(window_aspect)
+        # Ensure rectangle is located within its image:
+        object_rect = enlarged_rect.translated([0,0], img_dims)
+        # if not pixel_rect.lies_within_frame(img_dims):
+
+        sample = utils.crop_rectangle(img, object_rect)
+        sample = utils.resize_sample(sample, shape=window_shape)
+        sample = self.prepare_sample(sample)
+
+        flat_sample = sample.reshape(sample.shape[0] * sample.shape[1] * sample.shape[2])
+        feed = {self.x: [flat_sample], self.keep_prob: 1.0}
+        label_probs = self.sess.run(tf.nn.softmax(self.logits), feed_dict=feed)
+
+        pos_prob, neg_prob = label_probs[0]
+        is_object = pos_prob > neg_prob
+
+        return is_object, object_rect, pos_prob
 
     def detect_objects_in_image(self, img, greyscale=False, resize=True, return_detection_img=True, progress=True):
         h, w = img.shape[:2]
         scaled_img_dims = (w, h)
         if resize:
             max_w = 1024
+            # max_w = 200
             if img.shape[0] > max_w:
                 # print 'resize:', img_path, img.shape
                 # img = cv2.resize(img, dsize=None, fx=0.5, fy=0.5)
@@ -110,13 +163,16 @@ class TensorFlowObjectDetector(object):
             # Unzip the list of tuples into two lists:
             samples, windows = zip(*samples_windows)
 
+            # Perform the required colour conversion and preprocessing:
+            samples = [self.prepare_sample(sample) for sample in samples]
+
             # Convert shape from [num examples, rows, columns, depth]
             # to [num examples, rows*columns*depth]
             samples = np.stack(samples)
             samples = samples.reshape(samples.shape[0], samples.shape[1] * samples.shape[2] * samples.shape[3])
 
             feed = {self.x: samples, self.keep_prob: 1.0}
-            label_probs = self.sess.run(self.y_conv, feed_dict=feed)
+            label_probs = self.sess.run(tf.nn.softmax(self.logits), feed_dict=feed)
 
             if progress:
                 progressbar.next(batch_size)
@@ -135,6 +191,7 @@ class TensorFlowObjectDetector(object):
             detected_cars = np.array([])
 
         if return_detection_img:
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             draw_detections(img, detected_cars)
             return detected_cars.tolist(), img
         else:
@@ -204,6 +261,70 @@ class OpenCVObjectDetector(object):
         else:
             return detected_cars.tolist(), scaled_img_dims
 
+class CascadedObjectDetector(object):
+    def __init__(self, detectors):
+        self.detectors = detectors
+    def cleanup(self):
+        for detector in self.detectors:
+            detector.cleanup()
+    @classmethod
+    def load_from_directory(cls, data_dir_lst):
+        detectors = []
+        for data_dir in data_dir_lst:
+            detector = ObjectDetector.load_from_directory(data_dir)
+            detectors.append(detector)
+        return cls(detectors)
+    def detect_objects_in_image(self, img, greyscale=True, resize=True, return_detection_img=True, progress=True):
+        first_detector, other_detectors = self.detectors[0], self.detectors[1:]
+
+        # Detect objects with first classifier:
+        img_h, img_w = img.shape[:2]
+        img_dims = (img_w, img_h)
+        opencv_rects, scaled_img_dims = first_detector.detect_objects_in_image(
+            img,
+            greyscale=greyscale,
+            resize=resize,
+            return_detection_img=False,
+            progress=progress
+        )
+        pixel_rects = map(gm.PixelRectangle.from_opencv_bbox, opencv_rects)
+
+        # Find rectangles in original image dimensions:
+        pixel_rects = [rect.scale_image(scaled_img_dims, img_dims) for rect in pixel_rects]
+
+        detector_rects = [pixel_rects]
+        for detector in other_detectors:
+            object_rects = []
+            for rect in detector_rects[-1]:
+                # Attempt to classify the object at several different scales:
+                num_scales = 5
+                max_scale_diff = 0.3
+                for scale in np.linspace(1.0 - max_scale_diff, 1.0 + max_scale_diff, num_scales):
+                    test_rect = rect.scaled_about_center((scale, scale), img_dims)
+                    is_object, object_rect, prob = detector.classify(img, test_rect)
+                    # print is_object, object_rect
+                    if prob > 0.9:
+                    # if True:
+                        object_rects.append(object_rect)
+                        break
+                    elif is_object:
+                        print 'WARNING: Weak positive rejected (prob={})'.format(prob)
+
+            detector_rects.append(object_rects)
+
+        # print 'detector_rects:', detector_rects
+
+        detected_cars_lst = [rect.opencv_bbox for rect in detector_rects[-1]]
+        if return_detection_img:
+            # TODO: Draw output of each classifier.
+            cols = [(255, 0, 0), (0, 255, 0), (255, 0, 255)]
+            for i, rects in enumerate(detector_rects):
+                opencv_rects = [rect.opencv_bbox for rect in rects]
+                draw_detections(img, opencv_rects, cols[i])
+            return detected_cars_lst, img
+            # return detected_cars_lst, reg_img
+        else:
+            return detected_cars_lst, img_dims
 
 # TODO: Make abstract and provide OpenCV and TensorFlow implementations.
 # See: https://docs.python.org/2/library/abc.html
@@ -220,6 +341,9 @@ class ObjectDetector(object):
 
     @classmethod
     def load_from_directory(cls, data_dir):
+        if isinstance(data_dir, (list, tuple)):
+            return CascadedObjectDetector.load_from_directory(data_dir)
+
         detector = None
         try:
             detector = OpenCVObjectDetector.load_from_directory(data_dir)

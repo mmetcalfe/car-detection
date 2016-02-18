@@ -7,6 +7,10 @@ detector_directories:
       value: /Users/mitchell/google-drive/honours/car-detection/car-detection/output/cnn-train
     - label: OpenCV Cascade
       value: /Users/mitchell/google-drive/honours/car-detection/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+    - label: OpenCV Cascade then TensorFlow CNN
+      value:
+          - /Users/mitchell/google-drive/honours/car-detection/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+          - /Users/mitchell/google-drive/honours/car-detection/car-detection/output/cnn-train
 
 # Directories containing test images:
 image_directories:

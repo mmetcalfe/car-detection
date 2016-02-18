@@ -7,6 +7,10 @@ detector_directories:
       value: /var/www/car-detection/output/cnn-train
     - label: OpenCV Cascade
       value: /var/www/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+    - label: OpenCV Cascade then TensorFlow CNN
+      value:
+          - /var/www/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+          - /var/www/car-detection/output/cnn-train
 
 # Directories containing test images:
 image_directories:
