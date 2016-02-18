@@ -24,7 +24,8 @@ class TensorFlowObjectDetector(object):
         import tensorflow as tf
         detector = cls()
 
-        config_yaml_fname = '../../template.yaml'
+        config_yaml_fname = fileutils.find_in_ancestors('template.yaml')
+        print 'config_yaml_fname:', os.path.abspath(config_yaml_fname)
         config_yaml = fileutils.load_yaml_file(config_yaml_fname)
         detector.window_dims = tuple(map(int, config_yaml['training']['svm']['window_dims']))
 
@@ -65,7 +66,7 @@ class TensorFlowObjectDetector(object):
 
         return detector
 
-    def detect_objects_in_image(self, img, greyscale=False, resize=True, return_detection_img=True):
+    def detect_objects_in_image(self, img, greyscale=False, resize=True, return_detection_img=True, progress=True):
         h, w = img.shape[:2]
         scaled_img_dims = (w, h)
         if resize:
@@ -97,7 +98,10 @@ class TensorFlowObjectDetector(object):
         # num_batches = int(np.ceil(num_windows/float(batch_size)))
 
         detected_cars = []
-        progressbar = ProgressBar('Processing windows:', max=num_windows, suffix='%(index)d/%(max)d - %(eta)ds')
+
+        progressbar = None
+        if progress:
+            progressbar = ProgressBar('Processing windows:', max=num_windows, suffix='%(index)d/%(max)d - %(eta)ds')
         while True:
             samples_windows = list(itertools.islice(win_gen, 0, batch_size))
             if len(samples_windows) == 0:
@@ -114,14 +118,16 @@ class TensorFlowObjectDetector(object):
             feed = {self.x: samples, self.keep_prob: 1.0}
             label_probs = self.sess.run(self.y_conv, feed_dict=feed)
 
-            progressbar.next(batch_size)
+            if progress:
+                progressbar.next(batch_size)
 
             for probs, window in zip(label_probs, windows):
                 pos_prob, neg_prob = probs
                 if pos_prob > neg_prob:
                     detected_cars.append(window.opencv_bbox)
 
-        progressbar.finish()
+        if progress:
+            progressbar.finish()
 
         if len(detected_cars) > 0:
             detected_cars = np.stack(detected_cars)
@@ -143,12 +149,16 @@ class OpenCVObjectDetector(object):
     def load_from_directory(cls, data_dir):
         classifier_xml = '{}/cascade.xml'.format(data_dir)
 
-        if not os.path.isfile(classifier_xml):
+        if not os.path.isdir(data_dir):
+            classifier_xml = data_dir
+            if not os.path.isfile(classifier_xml):
+                raise ValueError('The given file \'{}\' does not exist.'.format(classifier_xml))
+        elif not os.path.isfile(classifier_xml):
             raise ValueError('The directory \'{}\' does not contain a trained cascade classifier (cascade.xml).'.format(data_dir))
 
         classifier = cv2.CascadeClassifier(classifier_xml)
         return cls(classifier)
-    def detect_objects_in_image(self, img, greyscale=True, resize=True, return_detection_img=True):
+    def detect_objects_in_image(self, img, greyscale=True, resize=True, return_detection_img=True, progress=True):
         # if resize:
         #     while img.shape[0] > 1024:
         #         # print 'resize:', img_path, img.shape

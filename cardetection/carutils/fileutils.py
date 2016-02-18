@@ -2,6 +2,23 @@ import io
 import os.path
 import yaml
 
+def find_in_ancestors(fname):
+    """ Finds a file with the given name in the current directory its parent, or
+    any ancestor.  """
+
+    dirname = os.curdir
+    while True:
+        if not os.path.isdir(dirname):
+            abspath = os.path.abspath(dirname)
+            raise IOError('The directory \'{}\' does not exist (\'{}\').'.format(dirname, abspath))
+
+        test_fname = os.path.join(dirname, fname)
+
+        if os.path.isfile(test_fname):
+            return test_fname
+
+        dirname = os.path.join(dirname, os.pardir)
+
 # loadYamlFile :: String -> IO (Tree String)
 def load_yaml_file(fname):
     if not os.path.isfile(fname):

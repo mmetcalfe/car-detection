@@ -108,7 +108,9 @@ dataset:
                 # the bbinfo directory. Ignore images for which exclusion
                 # information is not provided.
                 exclusion: /Users/mitchell/data/car-detection/shopping
-                hard_negative_classifier: /Users/mitchell/google-drive/honours/car-detection/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+                # hard_negative_classifier: /Users/mitchell/google-drive/honours/car-detection/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
+                hard_negative_classifier: /Users/mitchell/google-drive/honours/car-detection/car-detection/data/opencv_hog_48hours/cascades/cascade15.xml
+                # hard_negative_classifier: /Users/mitchell/google-drive/honours/car-detection/car-detection/output/cnn-train
             output:
                 positive: /Users/mitchell/data/car-detection/generated/positive
                 negative: /Users/mitchell/data/car-detection/generated/negative

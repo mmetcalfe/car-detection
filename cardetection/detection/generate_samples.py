@@ -45,30 +45,38 @@ def generate_hard_negative_regions(bak_img_dir, classifier_dir, window_dims):
     window_aspect = w / float(h)
 
     with ObjectDetector(classifier_dir) as detector:
-        for img_path in all_images:
-            # Detect objects:
-            img = cv2.imread(img_path)
-            img_h, img_w = img.shape[:2]
-            img_dims = (img_w, img_h)
-            opencv_rects, scaled_img_dims = detector.detect_objects_in_image(img, return_detection_img=False)
-            pixel_rects = map(gm.PixelRectangle.from_opencv_bbox, opencv_rects)
+        while True:
+            random.shuffle(all_images)
 
-            # Find rectangles in original image dimensions:
-            pixel_rects = [rect.scale_image(scaled_img_dims, img_dims) for rect in pixel_rects]
+            for img_path in all_images:
+                # Detect objects:
+                img = cv2.imread(img_path)
+                img_h, img_w = img.shape[:2]
+                img_dims = (img_w, img_h)
+                opencv_rects, scaled_img_dims = detector.detect_objects_in_image(
+                    img,
+                    resize=False,
+                    return_detection_img=False,
+                    progress=False
+                )
+                pixel_rects = map(gm.PixelRectangle.from_opencv_bbox, opencv_rects)
 
-            # Enlarge to window_dims:
-            pixel_rects = [rect.enlarge_to_aspect(window_aspect) for rect in pixel_rects]
+                # Find rectangles in original image dimensions:
+                pixel_rects = [rect.scale_image(scaled_img_dims, img_dims) for rect in pixel_rects]
 
-            # Ensure new rectangles are located within their images:
-            pixel_rects = [rect.translated([0,0], img_dims) for rect in pixel_rects]
-            pixel_rects = [rect for rect in pixel_rects if rect.lies_within_frame(img_dims)]
+                # Enlarge to window_dims:
+                pixel_rects = [rect.enlarge_to_aspect(window_aspect) for rect in pixel_rects]
 
-            # Convert to image regions:
-            image_regions = [utils.ImageRegion(rect, img_path) for rect in pixel_rects]
+                # Ensure new rectangles are located within their images:
+                pixel_rects = [rect.translated([0,0], img_dims) for rect in pixel_rects]
+                pixel_rects = [rect for rect in pixel_rects if rect.lies_within_frame(img_dims)]
 
-            # Yield results:
-            for reg in image_regions:
-                yield reg
+                # Convert to image regions:
+                image_regions = [utils.ImageRegion(rect, img_path) for rect in pixel_rects]
+
+                # Yield results:
+                for reg in image_regions:
+                    yield reg
 
 # generate_positive_regions :: String -> Map String ??? -> String -> (Int, Int) -> generator(ImageRegion)
 def generate_positive_regions(image_dir, bbinfo_dir, modifiers_config=None, window_dims=None, min_size=(48,48)):
