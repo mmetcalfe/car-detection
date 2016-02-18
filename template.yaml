@@ -126,7 +126,7 @@ dataset:
         # TODO: Add contrast + brightness adjustment.
 
         # Whether to use interpolation when resizing samples:
-        use_interp: False
+        use_interp: True
 
         # Whether to allow flipping the sample horizontally:
         enable_xflip: True # True or False
@@ -139,11 +139,12 @@ dataset:
         max_rotation_degrees: '0.0'
 
         # Max translation in each dimension as a fraction of sample size:
-        max_trans_frac: ['0.05', '0.05']
+        max_trans_frac: ['0.075', '0.075']
         # max_trans_frac: ['0.0', '0.0']
 
         # Range of allowable scale factors (about the centre of the sample):
-        scale_range: ['0.95', '1.1']
+        # scale_range: ['0.95', '1.1']
+        scale_range: ['1.0', '1.2']
         # scale_range: ['1.0', '1.0']
 
         # Use different random scaling factors for both the x and y axes,
@@ -162,7 +163,9 @@ training:
         # window_dims: ['192', '128'] # aspect 1.5
         # window_dims: ['144', '96'] # aspect 1.5
         # window_dims: ['96', '64'] # aspect 1.5
-        window_dims: ['48', '32'] # aspect 1.5
+        # window_dims: ['48', '32'] # aspect 1.5
+
+        window_dims: ['40', '32'] # aspect 1.25
 
         # window_dims: ['176', '128'] # aspect 1.375
         # window_dims: ['128', '96'] # aspect 1.333333

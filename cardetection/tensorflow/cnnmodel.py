@@ -9,7 +9,7 @@ def weight_variable(shape, name=None):
     return tf.Variable(initial)
 
 def bias_variable(shape, name=None):
-    initial = tf.constant(0.1, shape=shape, name=name)
+    initial = tf.constant(0.0, shape=shape, name=name)
     return tf.Variable(initial)
 
 # Convolution and pooling convenience functions:
@@ -21,6 +21,11 @@ def conv2d(x, W, name=None, strides=[1, 1, 1, 1]):
 def max_pool_2x2(x, name=None):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                           strides=[1, 2, 2, 1], padding='SAME', name=name)
+def local_norm(x, lsize=4, name='norm'):
+    return tf.nn.lrn(x, lsize, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name=name)
+def max_pool(x, k=3, s=2, name='pool'):
+    return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, s, s, 1],
+                           padding='SAME', name=name)
 
 # From: http://stackoverflow.com/a/33816991/3622526
 # See also: https://github.com/tensorflow/tensorflow/issues/908
@@ -74,11 +79,11 @@ def flat_mosaic(V, use_col=False):
     images representing the weights contributing to each class.
     """
 
-    # shape: [num_dense_neurons, num_classes]
+    # shape: [num_dense_neurons, NUM_CLASSES]
     # shape: [flat_img_size, num_class_images]
     shape = V.get_shape()
     flat_img_size = int(shape[0]) # flat_img_size
-    nc = int(shape[1]) # num_classes
+    nc = int(shape[1]) # NUM_CLASSES
     # shape: [flat_img_size, nc]
 
     # Find appropriate (near-square) dimensions for the images:
@@ -152,6 +157,13 @@ def flat_mosaic(V, use_col=False):
 #     return V
 
 def build_model(x, window_dims, use_colour=True):
+    PATCH_SIZE = 5
+    NUM_OUT_CHNLS_1 = 64
+    NUM_OUT_CHNLS_2 = 64
+    NUM_DENSE_NEURONS_1 = 512
+    NUM_DENSE_NEURONS_2 = 128
+    NUM_CLASSES = 2
+
     # Placeholder for input images:
     # x = tf.placeholder("float", [None, img_pixels], name='input_images')
     # Build the model:
@@ -171,32 +183,36 @@ def build_model(x, window_dims, use_colour=True):
     print 'x_image.get_shape()', x_image.get_shape()
 
     # First convolutional layer:
-    patch_size = 5
-    num_in_chnls_1 = num_col_chnls
+    NUM_IN_CHNLS_1 = num_col_chnls
 
     # Define weights and bias terms for layer 1:
-    # num_out_chnls_1 = 32
-    num_out_chnls_1 = 16
-    W_conv1 = weight_variable([patch_size, patch_size, num_in_chnls_1, num_out_chnls_1], name='W_conv1')
+    # NUM_OUT_CHNLS_1 = 32
+
+    W_conv1 = weight_variable([PATCH_SIZE, PATCH_SIZE, NUM_IN_CHNLS_1, NUM_OUT_CHNLS_1], name='W_conv1')
     print 'W_conv1.get_shape()', W_conv1.get_shape()
     conv = conv2d(x_image, W_conv1)
     print 'conv.get_shape()', conv.get_shape()
-    b_conv1 = bias_variable([num_out_chnls_1], name='b_conv1')
+    b_conv1 = bias_variable([NUM_OUT_CHNLS_1], name='b_conv1')
     # Convolve x_image with weight tensor, add bias, apply ReLU, then max pool:
     h_conv1 = tf.nn.relu(conv + b_conv1, name='h_conv1')
-    h_pool1 = max_pool_2x2(h_conv1, name='h_pool1')
+    # h_pool1 = max_pool_2x2(h_conv1, name='h_pool1')
 
+    h_pool1 = max_pool(h_conv1, name='h_pool1')
     print 'h_pool1.get_shape()', h_pool1.get_shape()
+    h_norm1 = local_norm(h_pool1, name='h_norm1')
+    print 'h_norm1.get_shape()', h_norm1.get_shape()
 
     # Second convolutional layer:
-    # num_out_chnls_2 = 64
-    num_out_chnls_2 = 16
-    W_conv2 = weight_variable([patch_size, patch_size, num_out_chnls_1, num_out_chnls_2], name='W_conv2')
-    b_conv2 = bias_variable([num_out_chnls_2], name='b_conv2')
+    W_conv2 = weight_variable([PATCH_SIZE, PATCH_SIZE, NUM_OUT_CHNLS_1, NUM_OUT_CHNLS_2], name='W_conv2')
+    b_conv2 = bias_variable([NUM_OUT_CHNLS_2], name='b_conv2')
 
     h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2, name='h_conv2')
-    h_pool2 = max_pool_2x2(h_conv2, name='h_pool2')
+    # h_pool2 = max_pool_2x2(h_conv2, name='h_pool2')
+    # print 'h_pool2.get_shape()', h_pool2.get_shape()
 
+    h_norm2 = local_norm(h_conv2, name='h_norm2')
+    print 'h_norm2.get_shape()', h_norm2.get_shape()
+    h_pool2 = max_pool(h_norm2, name='h_pool2')
     print 'h_pool2.get_shape()', h_pool2.get_shape()
 
     # Densely connected layer:
@@ -209,32 +225,38 @@ def build_model(x, window_dims, use_colour=True):
     reduced_img_h = int(h_pool2_shape[1])
     reduced_img_w = int(h_pool2_shape[2])
     # num_dense_neurons = 1024
-    num_dense_neurons = 256
-    reduced_img_pixels = reduced_img_h*reduced_img_w
-    W_fc1 = weight_variable([reduced_img_pixels*num_out_chnls_2, num_dense_neurons], name='W_fc1')
-    b_fc1 = bias_variable([num_dense_neurons], name='b_fc1')
-    print 'W_fc1.get_shape()', W_fc1.get_shape()
 
-    h_pool2_flat = tf.reshape(h_pool2, [-1, reduced_img_pixels*num_out_chnls_2], name='h_pool2_flat')
-    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1, name='h_fc1')
+    reduced_img_pixels = reduced_img_h*reduced_img_w
+    h_pool2_flat = tf.reshape(h_pool2, [-1, reduced_img_pixels*NUM_OUT_CHNLS_2], name='h_pool2_flat')
+
+    with tf.variable_scope('dense_1') as scope:
+        W_fc1 = weight_variable([reduced_img_pixels*NUM_OUT_CHNLS_2, NUM_DENSE_NEURONS_1], name='W_fc1')
+        b_fc1 = bias_variable([NUM_DENSE_NEURONS_1], name='b_fc1')
+        print 'W_fc1.get_shape()', W_fc1.get_shape()
+        h_fc1 = tf.nn.relu_layer(h_pool2_flat, W_fc1, b_fc1, name=scope.name)
+
+    with tf.variable_scope('dense_2') as scope:
+        W_fc2 = weight_variable([NUM_DENSE_NEURONS_1, NUM_DENSE_NEURONS_2], name='W_fc2')
+        b_fc2 = bias_variable([NUM_DENSE_NEURONS_2], name='b_fc2')
+        print 'W_fc2.get_shape()', W_fc2.get_shape()
+        h_fc2 = tf.nn.relu_layer(h_fc1, W_fc2, b_fc2, name=scope.name)
 
     # Dropout:
     keep_prob = tf.placeholder("float", name='keep_prob')
-    h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob, name='h_fc1_drop')
+    h_fc2_drop = tf.nn.dropout(h_fc2, keep_prob, name='h_fc2_drop')
 
     # Readout layer:
-    num_classes = 2
-    W_fc2 = weight_variable([num_dense_neurons, num_classes], name='W_fc2')
-    b_fc2 = bias_variable([num_classes], name='b_fc2')
+    with tf.variable_scope('softmax_linear') as scope:
+        W_ro = weight_variable([NUM_DENSE_NEURONS_2, NUM_CLASSES], name='W_ro')
+        b_ro = bias_variable([NUM_CLASSES], name='b_ro')
+        print 'W_ro.get_shape()', W_ro.get_shape()
 
-    print 'W_fc2.get_shape()', W_fc2.get_shape()
-
-    logits = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+        softmax_linear = tf.nn.xw_plus_b(h_fc2_drop, W_ro, b_ro, name=scope.name)
 
     # # Add summary ops to collect data
     # w_hist = tf.histogram_summary("W_conv1", W_conv1, name='w_hist')
     # b_hist = tf.histogram_summary("b_conv1", b_conv1, name='b_hist')
-    # y_hist = tf.histogram_summary("logits", logits, name='y_hist')
+    # y_hist = tf.histogram_summary("softmax_linear", softmax_linear, name='y_hist')
 
     # Image summaries:
     tf.image_summary('input', x_image, max_images=10)
@@ -255,6 +277,6 @@ def build_model(x, window_dims, use_colour=True):
 
     tf.image_summary('#4 filters W_fc2', flat_mosaic(W_fc2), max_images=1)
 
-    regularised_params = [W_fc1, b_fc1, W_fc2, b_fc2]
+    regularised_params = [W_fc1, W_fc2]
 
-    return logits, keep_prob, regularised_params
+    return softmax_linear, keep_prob, regularised_params

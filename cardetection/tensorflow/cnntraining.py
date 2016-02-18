@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 import input_data
 import cnnmodel
+import time
 
 if __name__ == '__main__':
     FLAGS = tf.app.flags.FLAGS
@@ -22,14 +23,16 @@ if __name__ == '__main__':
     num_data_gen_threads = 7
     datasets = input_data.initialise_data_sets(
         FLAGS.config_yaml,
-        pos_frac=0.2,
+        pos_frac=0.8,
         # exclusion_frac=0.02,
+        hard_neg_frac=0.05,
         exclusion_frac=0.05,
         test_pos_frac=1.0
     )
-    feature_batch, label_batch = datasets.train.batch_generators(1000)
-    summary_interval = 10
-    checkpoint_interval = 50
+    BATCH_SIZE = 50
+    feature_batch, label_batch = datasets.train.batch_generators(BATCH_SIZE)
+    SUMMARY_INTERVAL = 1
+    CHECKPOINT_INTERVAL = 50
 
     # Build the model:
     logits, keep_prob, regularised_params = cnnmodel.build_model(
@@ -137,12 +140,30 @@ if __name__ == '__main__':
         try:
             i = sess.run(global_step)
             while i < 100000:
-                i = sess.run(global_step)
             # for i in range(20000):
                 if datasets.train.should_stop():
                     break
 
-                if (i+1)%summary_interval == 0:  # Record summary data, and the accuracy
+                # train_step.run(session=sess, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
+                # train_step.run(session=sess, feed_dict={keep_prob: 0.5})
+                # print 'train_step'
+                start_time = time.time()
+                _, loss_value = sess.run([train_step, loss], feed_dict={keep_prob: 0.5})
+                step_duration = time.time() - start_time
+
+                examples_per_sec = BATCH_SIZE / float(step_duration)
+                sec_per_batch = float(step_duration)
+                time_stats = '{:5.1f} examples/sec; {:5.1f} sec/batch'.format(examples_per_sec, sec_per_batch)
+
+                mpq_size = datasets.train.get_mp_queue_size()
+                tfq_size = datasets.train.get_tf_queue_size(sess)
+                queue_stats = 'mpq size: {:4}, tfq size: {:4}'.format(mpq_size, tfq_size)
+
+                print 'train_step {:4}, {}, loss: {:6.2f}, ({})'.format(i, queue_stats, loss_value, time_stats)
+
+                i = sess.run(global_step)
+
+                if i % SUMMARY_INTERVAL == 0:  # Record summary data, and the accuracy
                     print 'Recording summary data, and accuracy...'
                     # batch_xs, batch_ys = datasets.test.next_batch(100)
                     # # feed = {x: datasets.test.images, y_: datasets.test.labels, keep_prob: 1.0}
@@ -155,17 +176,13 @@ if __name__ == '__main__':
                     # print 'Accuracy at step {}: {}.'.format(i, acc)
                     print 'Training accuracy at step {}: {}.'.format(i, acc)
 
-                if (i+1)%checkpoint_interval == 0:
+                if i % CHECKPOINT_INTERVAL == 0:
                     print 'Saving checkpoint...'
                     # train_accuracy = accuracy.eval(session=sess,feed_dict={
                     # x: batch_xs, y_: batch_ys, keep_prob: 1.0})
                     saver.save(sess, checkpoint_prefix, global_step=i)
                     print 'Checkpoint saved, step: {}.'.format(i)
 
-                # train_step.run(session=sess, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
-                # print 'train_step'
-                print 'train_step {:4}, mpq size: {:4}, tfq size: {:4}'.format(i, datasets.train.get_mp_queue_size(), datasets.train.get_tf_queue_size(sess))
-                train_step.run(session=sess, feed_dict={keep_prob: 0.5})
         except Exception, e:
             # Report exceptions to the coordinator.
             datasets.train.request_stop(e)
