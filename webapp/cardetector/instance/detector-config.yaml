@@ -3,8 +3,8 @@
 #  - The data directory of an OpenCV cascade classifier (containing cascade.xml)
 #  - A directory containing TensorFlow checkpoints
 detector_directories:
-    - label: TensorFlow CNN
-      value: /var/www/car-detection/output/cnn-train
+    # - label: TensorFlow CNN
+    #   value: /var/www/car-detection/output/cnn-train
     - label: OpenCV Cascade
       value: /var/www/car-detection/data/opencv_hog_48hours/trial_ftHOG/data
     - label: OpenCV Cascade then TensorFlow CNN

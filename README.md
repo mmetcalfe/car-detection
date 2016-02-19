@@ -186,6 +186,26 @@ Create the cache directory for caching detection images:
     # mkdir cardetector/static/cache
     # chown www-data cardetector/static/cache
 
+### Upload TensorFlow checkpoint data to the website:
+
+Assume we have a local directory `cnn-train` containing the TensorFlow checkpoint:
+
+    $ tar czf cnn-train.tar cnn-train
+    $ scp cnn-train.tar root@162.243.238.167:~/
+
+Then on the server:
+
+    # mkdir /var/www/car-detection/output/
+    # mv cnn-train.tar /var/www/car-detection/output/
+    # cd /var/www/car-detection/output/
+    # tar xzf cnn-train.tar
+
+Create the cache directory for caching detection images:
+
+    # cd /var/www/car-detection/webapp/cardetector
+    # mkdir cardetector/static/cache
+    # chown www-data cardetector/static/cache
+
 
 ## To train a cascade classifier:
 
