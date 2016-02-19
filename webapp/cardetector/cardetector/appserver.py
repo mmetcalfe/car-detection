@@ -46,33 +46,71 @@ def add_numbers():
     b = request.json['b']
     return jsonify(result=a + b)
 
+def hash_config_values(config_yaml):
+    import base64
+    hashed_config = []
+    for entry in config_yaml:
+        value = entry['value']
+        label = entry['label']
+        if isinstance(value, (list, tuple)):
+            value = tuple(value)
+
+        hashed_value = base64.urlsafe_b64encode(repr(hash(value)))
+        hashed_config.append({'value': hashed_value, 'label': label})
+    return hashed_config
+def hashed_config_value_dict(config_yaml):
+    import base64
+    hashed_dict = {}
+    for entry in config_yaml:
+        print entry
+        value = entry['value']
+        label = entry['label']
+        if isinstance(value, (list, tuple)):
+            value = tuple(value)
+        hashed_value = base64.urlsafe_b64encode(repr(hash(value)))
+        hashed_dict[hashed_value] = value
+    return hashed_dict
+
+def hashed_value_is_in_config_values(value, config_yaml):
+    hashed_config = hash_config_values(config_yaml)
+    values = [entry['value'] for entry in hashed_config]
+    return value in values
+
 @app.route('/_detector_directories', methods=['GET'])
 def detector_directories():
     """Load the detector directories from the config file"""
     config_yaml = fileutils.load_yaml_file(detector_config_fname)
-    return jsonify(detector_directories=config_yaml['detector_directories'])
+    hashed_config = hash_config_values(config_yaml['detector_directories'])
+    return jsonify(detector_directories=hashed_config)
 @app.route('/_image_directories', methods=['GET'])
 def image_directories():
     """Load the image directories from the config file"""
     config_yaml = fileutils.load_yaml_file(detector_config_fname)
-    return jsonify(image_directories=config_yaml['image_directories'])
+    hashed_config = hash_config_values(config_yaml['image_directories'])
+    return jsonify(image_directories=hashed_config)
 
-def validate_image_directory(imageDir, config_yaml):
+def validate_image_directory(image_dir, config_yaml):
+    img_dir_config = config_yaml['image_directories']
     # Ensure that only the allowed image directories are accessed:
-    allowed_img_dirs = [entry['value'] for entry in config_yaml['image_directories']]
-    if not imageDir in allowed_img_dirs:
-        print 'ERROR: The directory \'{}\' is not in the list of image directories.'.format(imageDir)
+    # allowed_img_dirs = [entry['value'] for entry in config_yaml['image_directories']]
+    # if not image_dir in allowed_img_dirs:
+    if not hashed_value_is_in_config_values(image_dir, img_dir_config):
+        print 'ERROR: The directory \'{}\' is not in the list of image directories.'.format(image_dir)
         # Indicate that this isn't allowed.
         # TODO: Display a better error to the client.
         flask.abort(403) # HTTP status codes: Forbidden
-def validate_detector_directory(detectorDir, config_yaml):
+    return hashed_config_value_dict(img_dir_config)[image_dir]
+def validate_detector_directory(detector_dir, config_yaml):
+    detector_dir_config = config_yaml['detector_directories']
     # Ensure that only the allowed detector directories are accessed:
-    allowed_detector_dirs = [entry['value'] for entry in config_yaml['detector_directories']]
-    if not detectorDir in allowed_detector_dirs:
-        print 'ERROR: The directory \'{}\' is not in the list of detector directories.'.format(detectorDir)
+    # allowed_detector_dirs = [entry['value'] for entry in config_yaml['detector_directories']]
+    # if not detector_dir in allowed_detector_dirs:
+    if not hashed_value_is_in_config_values(detector_dir, detector_dir_config):
+        print 'ERROR: The directory \'{}\' is not in the list of detector directories.'.format(detector_dir)
         # Indicate that this isn't allowed.
         # TODO: Display a better error to the client.
         flask.abort(403) # HTTP status codes: Forbidden
+    return hashed_config_value_dict(detector_dir_config)[detector_dir]
 
 @app.route('/_update_preview_state', methods=['POST'])
 def update_preview_state():
@@ -84,14 +122,14 @@ def update_preview_state():
 
     # Get the inputs:
     currentImgIndex = request.json['currentImgIndex']
-    imageDir = request.json['imageDir']
-    detectorDir = request.json['detectorDir']
+    hashed_image_dir = request.json['imageDir']
+    hashed_detector_dir = request.json['detectorDir']
     performDetection = request.json['performDetection']
     returnImage = request.json['returnImage']
 
     config_yaml = fileutils.load_yaml_file(detector_config_fname)
 
-    validate_image_directory(imageDir, config_yaml)
+    imageDir = validate_image_directory(hashed_image_dir, config_yaml)
 
     # Get the images:
     image_list = sorted(utils.list_images_in_directory(imageDir))
@@ -122,7 +160,7 @@ def update_preview_state():
         if not returnImage or not detection_img_exists:
             # Perform the detection.
 
-            validate_detector_directory(detectorDir, config_yaml)
+            detectorDir = validate_detector_directory(hashed_detector_dir, config_yaml)
 
             # detector = ObjectDetector.load_from_directory(detectorDir)
             with ObjectDetector(detectorDir) as detector:
