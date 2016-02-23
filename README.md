@@ -2,6 +2,9 @@
 
 ## Dependencies:
 
+Note: This project was developed on OS X Yosemite, v10.10.5.
+The web app was also tested and deployed on an Ubuntu 15.10 x64 server. Changes will likely be required to make the code work on other operating systems.
+
 For several modules:
 
   * numpy
@@ -262,9 +265,31 @@ Downloads all images with bounding boxes from the synsets listed in `parent_word
 
 ## Tensorflow:
 
-To run tensorboard:
+Note: At present, the stable versions of TensorFlow (0.6.0) don't work with the code for this project, so it was installed from the source on the current master branch (ie. commit 6671d58ff9c60c724582e4e7a4ddaad0a0acda5a).
 
+See the instructions in [the web app deployment section](#deploy-web-app-to-a-digitalocean-ubuntu-1510-x64-server) for how to build TensorFlow from source on Ubuntu.
+
+The current TensorFlow model used is based on the following (it's nearly identical to the CIFAR-10 example):
+  * https://github.com/tensorflow/tensorflow/blob/master/tensorflow/models/image/mnist/convolutional.py
+  * https://github.com/aymericdamien/TensorFlow-Examples/blob/master/examples/3%20-%20Neural%20Networks/alexnet.py
+  * https://www.tensorflow.org/versions/r0.7/tutorials/deep_cnn/index.html
+  * https://www.tensorflow.org/versions/r0.7/tutorials/mnist/pros/index.html#deep-mnist-for-experts
+
+It was trained with the following setting (at a rate of ~58 examples/second):
+  * Trained for 1550 steps
+  * pos_frac: 0.2
+  * hard_negative_frac: 0.05
+  * exclusion_frac=0.05
+  * batch_size: 1000
+  * learning_rate: 1e-4
+
+To build and run TensorBoard:
+
+    $ cd <tensorflow repository directory> # e.g. /Users/mitchell/code/tensorflow
+    $ bazel build tensorflow/tensorboard:tensorboard
     $ bazel-bin/tensorflow/tensorboard/tensorboard --logdir /projects/car-detection/output/cnn-train/
+
+Then visit the displayed url in a web browser.
 
 ## Other scripts:
 
