@@ -46,8 +46,12 @@ def add_numbers():
     b = request.json['b']
     return jsonify(result=a + b)
 
-def hash_config_values(config_yaml):
+def url_safe_hash(value):
     import base64
+    hashed_value = base64.urlsafe_b64encode(repr(hash(value)))
+    return hashed_value
+
+def hash_config_values(config_yaml):
     hashed_config = []
     for entry in config_yaml:
         value = entry['value']
@@ -55,11 +59,10 @@ def hash_config_values(config_yaml):
         if isinstance(value, (list, tuple)):
             value = tuple(value)
 
-        hashed_value = base64.urlsafe_b64encode(repr(hash(value)))
+        hashed_value = url_safe_hash(value)
         hashed_config.append({'value': hashed_value, 'label': label})
     return hashed_config
 def hashed_config_value_dict(config_yaml):
-    import base64
     hashed_dict = {}
     for entry in config_yaml:
         print entry
@@ -67,7 +70,7 @@ def hashed_config_value_dict(config_yaml):
         label = entry['label']
         if isinstance(value, (list, tuple)):
             value = tuple(value)
-        hashed_value = base64.urlsafe_b64encode(repr(hash(value)))
+        hashed_value = url_safe_hash(value)
         hashed_dict[hashed_value] = value
     return hashed_dict
 
@@ -150,13 +153,15 @@ def update_preview_state():
     # Perform detection:
     detections = []
     if performDetection:
-        send_img_path = os.path.join(app.root_path, 'static', 'cache', 'tmp-detection-img.jpg')
-        save_img_path = send_img_path
+        save_img_dir = os.path.join(app.root_path, 'static', 'cache')
+        save_img_fname = '{}.jpg'.format(url_safe_hash(current_img_path + hashed_detector_dir))
+        save_img_path = os.path.join(save_img_dir, save_img_fname)
+        send_img_path = save_img_path
         detection_img_exists = os.path.isfile(save_img_path)
-        if not returnImage and detection_img_exists:
-            # Delete the current image so that it isn't returned by mistake if
-            # the detection process fails.
-            os.remove(save_img_path)
+        # if not returnImage and detection_img_exists:
+        #     # Delete the current image so that it isn't returned by mistake if
+        #     # the detection process fails.
+        #     os.remove(save_img_path)
         if not returnImage or not detection_img_exists:
             # Perform the detection.
 
