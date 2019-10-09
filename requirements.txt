@@ -1,6 +1,6 @@
 cyglfw3 == 3.1.0.2
 ExifRead == 2.1.2
-Flask == 0.10.1
+Flask == 1.0
 matplotlib == 1.4.3
 numpy == 1.10.4
 progress == 1.2
