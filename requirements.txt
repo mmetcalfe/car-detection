@@ -14,4 +14,4 @@ beautifulsoup4 == 4.4.1
 cv2 == 1.0
 pyassimp == 0.1
 scikit_learn == 0.17
-PyYAML == 3.11
+PyYAML == 5.1
